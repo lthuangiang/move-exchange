@@ -1,0 +1,529 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Quy trình thực hiện quyền</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: process picker on top, swimlane-free flowchart on the left, sticky step inspector on the right (bottom sheet on phones) */
+:root{
+  --bg:#f3f6f8; --board:#ffffff; --surface:#ffffff; --ink:#14212c; --muted:#5a6b79; --line:#d3dce3; --edge:#a3b1bc; --chip:#eef2f5;
+  --accent:#1757c2; --accent-soft:#dfe9fa;
+  --vsd:#5b45c9; --vsd-soft:#ece8fc; --ctck:#0a7466; --ctck-soft:#dff3ef; --sys:#a35f00; --sys-soft:#fbefd9; --ndt:#b8304f; --ndt-soft:#fbe4ea;
+  --dec-soft:#eef2f5; --ok:#0a7466;
+  --f-body:"Be Vietnam Pro", system-ui, "Segoe UI", Roboto, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e141a; --board:#141c24; --surface:#18222c; --ink:#e4ecf2; --muted:#9aacba; --line:#2b3946; --edge:#566876; --chip:#212d38;
+  --accent:#74abff; --accent-soft:#1b2c47;
+  --vsd:#ad9bff; --vsd-soft:#272241; --ctck:#53cfbb; --ctck-soft:#13322e; --sys:#efb357; --sys-soft:#372a13; --ndt:#ff86a2; --ndt-soft:#3a1a24;
+  --dec-soft:#212d38; --ok:#53cfbb; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141a; --board:#141c24; --surface:#18222c; --ink:#e4ecf2; --muted:#9aacba; --line:#2b3946; --edge:#566876; --chip:#212d38;
+  --accent:#74abff; --accent-soft:#1b2c47;
+  --vsd:#ad9bff; --vsd-soft:#272241; --ctck:#53cfbb; --ctck-soft:#13322e; --sys:#efb357; --sys-soft:#372a13; --ndt:#ff86a2; --ndt-soft:#3a1a24;
+  --dec-soft:#212d38; --ok:#53cfbb; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.55}
+.wrap{max-width:1360px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px))}
+header.top{padding-block:28px 12px}
+.eyebrow{font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+h1{font-size:clamp(24px,3.2vw,34px); line-height:1.15; margin:6px 0 8px; text-wrap:balance; font-weight:700}
+.lead{max-width:68ch; color:var(--muted); margin:0}
+.procs{display:flex; flex-wrap:wrap; gap:8px; padding-block:14px 18px}
+.procs button{font:inherit; font-size:13.5px; font-weight:500; padding:8px 14px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; display:flex; gap:8px; align-items:center}
+.procs button .n{font-family:var(--f-mono); font-size:11px; color:var(--muted)}
+.procs button:hover{border-color:var(--accent)}
+.procs button[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--board)}
+.procs button[aria-pressed="true"] .n{color:inherit; opacity:.8}
+button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.layout{display:grid; grid-template-columns:minmax(0,1fr) 370px; gap:20px; align-items:start; padding-block:0 40px}
+.board{background:var(--board); border:1px solid var(--line); border-radius:14px; min-width:0; overflow:hidden}
+.board-head{padding:18px 20px 6px; display:flex; flex-wrap:wrap; gap:10px 24px; justify-content:space-between; align-items:flex-end}
+.board-head h2{margin:0; font-size:20px; line-height:1.25; text-wrap:balance}
+.board-head p{margin:2px 0 0; color:var(--muted); font-size:13.5px}
+.legend{display:flex; flex-wrap:wrap; gap:6px 12px; font-size:12px; color:var(--muted)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.sw{width:12px; height:12px; border-radius:3px; border:1.5px solid var(--c); background:var(--s)}
+.sw.dec{transform:rotate(45deg) scale(.8); border-radius:1px}
+.sw.dash{border-style:dashed; --c:var(--muted); --s:transparent}
+
+.status{list-style:none; margin:10px 0 0; padding:10px 20px 14px; display:flex; gap:0; overflow-x:auto; border-bottom:1px solid var(--line)}
+.status li{flex:1 0 108px; position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:5px; font-size:11.5px; color:var(--muted); line-height:1.3; padding:0 4px}
+.status li::before{content:""; position:absolute; top:13px; left:calc(-50% + 16px); right:calc(50% + 16px); height:2px; background:var(--line)}
+.status li:first-child::before{display:none}
+.status .dot{width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-family:var(--f-mono); font-size:12px; border:2px solid var(--line); background:var(--board); color:var(--muted); position:relative; z-index:1; transition:all .25s}
+.status li.unused{opacity:.38}
+.status li.passed .dot{border-color:var(--ok); color:var(--ok)}
+.status li.passed::before{background:var(--ok)}
+.status li.cur .dot{background:var(--accent); border-color:var(--accent); color:var(--board)}
+.status li.cur{color:var(--ink); font-weight:600}
+
+.scroller{overflow-x:auto; padding:6px 4px 16px}
+.canvas{position:relative; margin:0 auto}
+.canvas svg{position:absolute; inset:0; overflow:visible}
+.edge path.l{fill:none; stroke:var(--edge); stroke-width:1.6; stroke-linejoin:round; transition:stroke .25s}
+.edge.opt path.l{stroke-dasharray:4 4}
+.edge.taken path.l{stroke:var(--accent); stroke-width:2.4}
+.edge.next path.l{stroke:var(--accent); stroke-dasharray:6 6; animation:flow 1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-12}}
+.edge text{font-size:11.5px; font-weight:600; fill:var(--muted); stroke:var(--board); stroke-width:4px; paint-order:stroke; stroke-linejoin:round}
+.edge.taken text,.edge.next text{fill:var(--accent)}
+.mk{fill:var(--edge)} .mk-on{fill:var(--accent)}
+
+.node{position:absolute; display:flex; flex-direction:column; justify-content:center; gap:2px; padding:6px 11px; text-align:left; font:inherit; color:var(--ink);
+  background:var(--surface); border:1.5px solid var(--line); border-radius:10px; cursor:pointer; transition:border-color .2s, box-shadow .2s, background .2s; scroll-margin:80px}
+.node:hover{border-color:var(--lc, var(--accent))}
+.node .meta{display:flex; justify-content:space-between; gap:6px; align-items:baseline}
+.node .lane{font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--lc)}
+.node .scr{font-family:var(--f-mono); font-size:10.5px; color:var(--muted)}
+.node .t{font-size:13px; font-weight:600; line-height:1.28; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.l-vsd{--lc:var(--vsd); --ls:var(--vsd-soft)} .l-ctck{--lc:var(--ctck); --ls:var(--ctck-soft)} .l-sys{--lc:var(--sys); --ls:var(--sys-soft)} .l-ndt{--lc:var(--ndt); --ls:var(--ndt-soft)}
+.node.vis{background:var(--ls, var(--dec-soft)); border-color:color-mix(in srgb, var(--lc, var(--muted)) 45%, transparent)}
+.node.cur{border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft)}
+.node.opt{border-style:dashed}
+.node.ev,.node.end{border-radius:999px; align-items:center; text-align:center; padding-inline:18px}
+.node.end{--lc:var(--ink)}
+.node.end .t{font-size:14px}
+.node.dec{border:none; padding:1.5px; background:var(--edge); clip-path:polygon(9% 0,91% 0,100% 50%,91% 100%,9% 100%,0 50%); box-shadow:none}
+.node.dec .in{width:100%; height:100%; display:flex; align-items:center; justify-content:center; text-align:center; padding:0 26px; background:var(--surface); clip-path:polygon(9% 0,91% 0,100% 50%,91% 100%,9% 100%,0 50%)}
+.node.dec .t{font-size:12.5px}
+.node.dec.vis{background:var(--muted)} .node.dec.vis .in{background:var(--dec-soft)}
+.node.dec.cur{background:var(--accent)} .node.dec.cur .in{background:var(--accent-soft)}
+@keyframes pop{0%{transform:scale(.96)}60%{transform:scale(1.03)}100%{transform:scale(1)}}
+.node.cur{animation:pop .35s ease-out}
+
+.notes{margin:0 20px 20px; padding:14px 16px; border-radius:10px; background:var(--chip); font-size:13.5px}
+.notes.diff{background:var(--sys-soft)}
+.notes + .notes{margin-top:-8px}
+.notes h3{margin:0 0 6px; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+.notes ul{margin:0; padding-left:18px; display:grid; gap:4px}
+
+.panel{position:sticky; top:16px; background:var(--surface); border:1px solid var(--line); border-radius:14px; display:flex; flex-direction:column; max-height:calc(100vh - 32px)}
+.controls{display:grid; grid-template-columns:1fr 1.4fr 1fr; gap:8px; padding:14px; border-bottom:1px solid var(--line)}
+.controls .wide{grid-column:1 / -1; display:flex; gap:8px}
+.btn{font:inherit; font-size:13.5px; font-weight:600; padding:9px 10px; border-radius:9px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:disabled{opacity:.4; cursor:default}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--board)}
+.btn.ghost{flex:1; font-weight:500; color:var(--muted)}
+.progress{height:4px; background:var(--chip); border-radius:4px; overflow:hidden; grid-column:1/-1}
+.progress i{display:block; height:100%; width:0; background:var(--accent); transition:width .3s}
+.detail{padding:16px 18px 20px; overflow-y:auto}
+.detail .chip{display:inline-block; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--lc, var(--muted)); background:var(--ls, var(--chip)); padding:3px 8px; border-radius:6px}
+.detail h3{font-size:19px; line-height:1.3; margin:8px 0 12px; text-wrap:balance}
+.detail dl{display:grid; grid-template-columns:auto 1fr; gap:7px 12px; margin:0 0 14px; font-size:13.5px}
+.detail dt{color:var(--muted)}
+.detail dd{margin:0; min-width:0}
+code.scr{font-family:var(--f-mono); font-size:12.5px; background:var(--chip); padding:2px 6px; border-radius:5px}
+kbd{font-family:var(--f-body); font-size:11.5px; font-weight:700; letter-spacing:.03em; padding:2px 8px; border-radius:5px; border:1px solid var(--line); border-bottom-width:2px; background:var(--board)}
+.stpill{display:inline-flex; gap:6px; align-items:center; font-weight:600; color:var(--accent)}
+.stpill b{font-family:var(--f-mono); width:20px; height:20px; border-radius:50%; background:var(--accent); color:var(--board); display:inline-grid; place-items:center; font-size:11px}
+.detail p.desc{margin:0 0 12px; max-width:65ch}
+.check{font-size:13px; padding:10px 12px; border-radius:8px; background:var(--chip); margin:0 0 12px}
+.check b{display:block; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px}
+.choices{display:grid; gap:8px; margin-top:4px}
+.choices p{margin:0; font-size:12.5px; color:var(--muted); font-weight:600; letter-spacing:.04em; text-transform:uppercase}
+.choice{font:inherit; text-align:left; padding:10px 12px; border-radius:9px; border:1.5px solid var(--accent); background:var(--accent-soft); color:var(--ink); cursor:pointer; display:flex; justify-content:space-between; gap:8px}
+.choice span{color:var(--muted); font-size:12.5px}
+.choice:hover{background:var(--surface)}
+.apps{margin:4px 0 12px}
+.apps p{margin:0 0 6px; font-size:12.5px; color:var(--muted); font-weight:600; letter-spacing:.04em; text-transform:uppercase}
+.apps div{display:flex; flex-wrap:wrap; gap:6px}
+.appbtn{font:inherit; font-size:12.5px; font-weight:500; padding:5px 10px; border-radius:999px; border:1px solid var(--line); background:var(--chip); color:var(--ink); cursor:pointer}
+.appbtn:hover{border-color:var(--accent); color:var(--accent)}
+.hint{font-size:12.5px; color:var(--muted); margin:10px 0 0}
+
+footer.more{padding-block:0 48px; display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+footer details{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 16px}
+footer summary{cursor:pointer; font-weight:600}
+footer ul{margin:10px 0 4px; padding-left:18px; display:grid; gap:4px; font-size:14px}
+.gloss{display:grid; grid-template-columns:auto 1fr; gap:4px 14px; margin:10px 0 4px; font-size:14px}
+.gloss dt{font-family:var(--f-mono); font-size:12.5px; font-weight:500; padding-top:2px}
+.gloss dd{margin:0; color:var(--muted)}
+
+.linkbtn{font:inherit; color:var(--accent); background:none; border:none; padding:0; cursor:pointer; font-weight:600; text-decoration:underline; text-underline-offset:3px}
+.abbr{padding-block:0 48px}
+.abbr-card{background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow:hidden}
+.abbr-head{display:flex; flex-wrap:wrap; gap:10px 20px; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line)}
+.abbr-head h2{margin:0; font-size:20px}
+.abbr-search{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted)}
+.abbr-search input{font:inherit; font-size:14px; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:7px 10px; width:min(260px, 60vw)}
+.abbr-search input:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.abbr-scroll{overflow-x:auto}
+.abbr-table{width:100%; border-collapse:collapse; font-size:14px}
+.abbr-table th{text-align:left; font-size:11.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:10px 20px; background:var(--chip)}
+.abbr-table td{padding:9px 20px; border-top:1px solid var(--line); vertical-align:top}
+.abbr-table td:first-child{font-family:var(--f-mono); font-size:13px; font-weight:500; white-space:nowrap; width:1%}
+.abbr-table td:last-child{width:1%; white-space:nowrap}
+.src{font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:6px; background:var(--ctck-soft); color:var(--ctck)}
+.src.ext{background:var(--chip); color:var(--muted)}
+.abbr-empty{margin:0; padding:14px 20px; color:var(--muted)}
+@media (max-width:1020px){
+  .layout{grid-template-columns:minmax(0,1fr); padding-bottom:calc(46vh + 24px)}
+  .panel{position:fixed; top:auto; left:0; right:0; bottom:0; max-height:46vh; border-radius:16px 16px 0 0; z-index:20; box-shadow:0 -8px 30px rgba(0,0,0,.18);
+    padding-bottom:env(safe-area-inset-bottom,0px); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px)}
+  .controls{padding:10px 12px}
+  .detail{padding:12px 16px 16px}
+  .detail h3{font-size:17px; margin:6px 0 8px}
+  .node{scroll-margin:40px 40px calc(46vh + 40px)}
+}
+@media (prefers-reduced-motion: reduce){
+  .edge.next path.l{animation:none} .node.cur{animation:none} *{transition:none!important}
+}
+</style>
+
+<header class="top wrap">
+  <div class="eyebrow">Tài liệu nghiệp vụ lưu ký · Phiên bản 1.0.0</div>
+  <h1>Quy trình thực hiện quyền</h1>
+  <p class="lead">Chọn một loại quyền, rồi bấm <b>Tiếp</b> hoặc <b>Tự chạy</b> để đi qua từng bước. Ở mỗi điểm rẽ nhánh, bạn chọn tình huống để xem quy trình đi tiếp ra sao. Bấm vào ô bất kỳ trên sơ đồ để xem chi tiết bước đó. <button type="button" class="linkbtn" id="toAbbr">Xem bảng từ viết tắt ↓</button></p>
+</header>
+
+<nav class="wrap procs" id="procs" aria-label="Chọn loại quyền"></nav>
+
+<main class="wrap layout">
+  <section class="board" aria-label="Sơ đồ quy trình">
+    <div class="board-head">
+      <div><h2 id="pTitle"></h2><p id="pSub"></p></div>
+      <div class="legend" aria-label="Chú thích">
+        <span><i class="sw" style="--c:var(--vsd);--s:var(--vsd-soft)"></i>VSD</span>
+        <span><i class="sw" style="--c:var(--ctck);--s:var(--ctck-soft)"></i>Nhân viên CTCK</span>
+        <span><i class="sw" style="--c:var(--sys);--s:var(--sys-soft)"></i>Hệ thống</span>
+        <span><i class="sw" style="--c:var(--ndt);--s:var(--ndt-soft)"></i>Nhà đầu tư</span>
+        <span><i class="sw dec" style="--c:var(--muted);--s:var(--dec-soft)"></i>Rẽ nhánh</span>
+        <span><i class="sw dash"></i>Tùy chọn</span>
+      </div>
+    </div>
+    <ol class="status" id="statusBar" aria-label="Trạng thái quyền"></ol>
+    <div class="scroller"><div class="canvas" id="canvas"><svg id="edges" aria-hidden="true"></svg><div id="nodes"></div></div></div>
+    <div id="notes"></div>
+  </section>
+
+  <aside class="panel" aria-label="Chi tiết bước">
+    <div class="controls">
+      <button class="btn" id="btnBack" type="button">← Quay lại</button>
+      <button class="btn primary" id="btnNext" type="button">Tiếp →</button>
+      <button class="btn" id="btnPlay" type="button">▶ Tự chạy</button>
+      <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+    </div>
+    <div class="detail" id="detail" aria-live="polite"></div>
+  </aside>
+</main>
+
+
+<section class="wrap abbr" id="viet-tat" aria-labelledby="abbrTitle">
+  <div class="abbr-card">
+    <div class="abbr-head">
+      <h2 id="abbrTitle">Bảng từ viết tắt</h2>
+      <label class="abbr-search" for="abbrQ"><span>Tìm</span><input id="abbrQ" type="search" placeholder="Ví dụ: VSD, chờ giao dịch…" autocomplete="off"></label>
+    </div>
+    <div class="abbr-scroll">
+      <table class="abbr-table">
+        <thead><tr><th scope="col">Viết tắt</th><th scope="col">Ý nghĩa</th><th scope="col">Nguồn</th></tr></thead>
+        <tbody id="abbrBody"></tbody>
+      </table>
+    </div>
+    <p class="abbr-empty" id="abbrEmpty" hidden>Không có từ viết tắt nào khớp.</p>
+  </div>
+</section>
+
+<script>
+(function(){
+const LANES={vsd:'VSD',ctck:'Nhân viên CTCK',sys:'Hệ thống',ndt:'Nhà đầu tư'};
+const ST=['Nhập thông tin quyền','Chốt DS hưởng quyền','Xác nhận DS hưởng quyền','Xác nhận DS thực hiện quyền','Hạch toán tăng cổ phiếu','Hạch toán giảm cổ phiếu','Thanh toán tiền'];
+const CHK_HT='Màn hình 0351 – tab 3; báo cáo trên #0800: 038002, 018005.';
+const CHK_PAY='Màn hình #0800: báo cáo 028011, 018005.';
+const CHK_GD='Dữ liệu chuyển chờ giao dịch sang giao dịch: màn hình 0351 – tab 3.';
+
+function F(){this.nodes=[];this.edges=[];this.r=0;}
+F.prototype.n=function(id,c,o){this.nodes.push(Object.assign({id:id,r:this.r,c:c},o));return this;};
+F.prototype.row=function(){this.r++;return this;};
+F.prototype.e=function(a,b,o){this.edges.push(Object.assign({from:a,to:b},o||{}));return this;};
+F.prototype.link=function(src,to){var s=this;src.forEach(function(x){Array.isArray(x)?s.e(x[0],to,x[1]):s.e(x,to);});return this;};
+
+function prefix(f,o){
+  f.n('tb',0,{lane:'vsd',type:'ev',title:'VSD thông báo ngày ĐKCC',desc:'Trung tâm lưu ký (VSD) gửi thông báo về ngày đăng ký cuối cùng (ĐKCC) của quyền. Đây là điểm bắt đầu quy trình.'}).row();
+  f.n('nhap',0,{lane:'ctck',title:'Nhập thông tin quyền',screen:o.screen,st:0,desc:'Nhân viên CTCK nhập thông tin '+o.what+' vào hệ thống. Lưu thành công thì quyền ở trạng thái 0.'}).e('tb','nhap').row();
+  f.n('d1',0,{type:'dec',title:'Quyền được nhập trước ngày ĐKCC?',desc:'Cách chốt danh sách hưởng quyền phụ thuộc vào việc quyền được nhập trước hay sau ngày ĐKCC.'}).e('nhap','d1').row();
+  f.n('chot',0,{lane:'ctck',title:'Chốt DS hưởng quyền',screen:'0402 – tab 1',btn:'CHỐT QUYỀN / PHÂN BỔ',st:1,desc:'Quyền nhập sau ngày ĐKCC: nhân viên CTCK vào màn hình 0402 – tab 1 để chốt danh sách hưởng quyền. Phần giải thích gọi nút này là CHỐT QUYỀN, sơ đồ gốc ghi nút PHÂN BỔ.'})
+   .n('vsdds',1,{lane:'vsd',type:'ev',title:'VSD gửi danh sách người sở hữu',desc:o.vsdList})
+   .n('auto',2,{lane:'sys',title:'Đóng ngày ĐKCC: tự chốt và xác nhận DS',sts:[1,2],st:2,desc:'Quyền đã có trên hệ thống trước ngày ĐKCC: khi chạy đóng ngày vào ngày ĐKCC, hệ thống tự động chốt danh sách hưởng quyền (trạng thái 1) và xác nhận danh sách hưởng quyền (trạng thái 2). Nhánh này chỉ có trong phần giải thích, sơ đồ gốc không vẽ.'})
+   .e('d1','chot',{label:'Không',def:true}).e('d1','auto',{label:'Có'}).e('chot','vsdds').row();
+  var q=o.money?'số tiền':'số lượng';
+  f.n('d2',0,{type:'dec',title:'Đối chiếu DS với VSD: khớp?',desc:'Đối chiếu danh sách chốt quyền trên hệ thống với danh sách người sở hữu do VSD gửi.'})
+   .e('vsdds','d2').row();
+  f.n('xn',0,{lane:'ctck',title:'Xác nhận DS hưởng quyền với VSD',screen:'0402 – tab 1',btn:'XÁC NHẬN',st:2,desc:'Nhấn XÁC NHẬN trên màn hình 0402 – tab 1 để xác nhận danh sách đúng với VSD. Quyền chuyển sang trạng thái 2.'+(o.xnExtra||''),kh:o.xnKh})
+   .n('sua',1,{lane:'ctck',title:'Chỉnh sửa '+q+' chốt quyền',screen:'0402 – tab 1',btn:'SỬA',st:1,desc:'Danh sách không khớp với VSD: chỉnh sửa '+q+' chốt quyền trên màn hình 0402 – tab 1 (nút SỬA), rồi xác nhận danh sách. Chỉ quyền ở trạng thái 1 mới được sửa.'})
+   .e('d2','xn',{label:'Khớp',def:true}).e('d2','sua',{label:'Không khớp'}).e('sua','xn').row();
+  f.n('inxn',0,{lane:'ctck',title:o.confirmTitle||'In thông báo xác nhận gửi VSD',screen:o.confirmScreen!=null?o.confirmScreen:'0800',desc:(o.confirmDesc||'Vào #0800 in báo cáo 049004 (mẫu 03/THQ) – thông báo xác nhận danh sách gửi VSD.')+' VSD nhận thông báo xác nhận từ thành viên lưu ký (TVLK).'})
+   .link(['xn','auto'],'inxn').row();
+  return ['inxn'];
+}
+function alloc(f,src,o){
+  f.n('vsdpb',0,{lane:'vsd',type:'ev',title:o.letter,desc:o.letterDesc}).link(src,'vsdpb').row();
+  f.n('suangay',0,{lane:'ctck',title:o.edit,screen:o.screen,desc:o.editDesc}).e('vsdpb','suangay').row();
+  f.n('xnpb',0,{lane:'ctck',title:'Xác nhận DS phân bổ với VSD',screen:'0402 – tab 2',btn:'XÁC NHẬN',st:3,desc:'Vào màn hình 0402 – tab 2, nhấn XÁC NHẬN danh sách phân bổ với VSD. Quyền chuyển sang trạng thái 3.'}).e('suangay','xnpb').row();
+  return ['xnpb'];
+}
+function htTang(f,src,check,kh){
+  f.n('htt',0,{lane:'ctck',title:'Hạch toán tăng chứng khoán',screen:'0402 – tab 3',btn:'HẠCH TOÁN TĂNG CK',st:4,check:check,kh:kh,desc:'Vào màn hình 0402 – tab 3, nhấn HẠCH TOÁN TĂNG CK để hạch toán chứng khoán về tài khoản khách hàng. Chứng khoán ở dạng tự do chuyển nhượng chờ giao dịch (TDCN CGD). Quyền chuyển sang trạng thái 4.'}).link(src,'htt').row();
+  return ['htt'];
+}
+function htGiam(f,src,what,check){
+  f.n('htg',0,{lane:'ctck',title:'Hạch toán giảm chứng khoán',screen:'0402 – tab 3',btn:'HẠCH TOÁN GIẢM CK',st:5,check:check,desc:'Trên màn hình 0402 – tab 3, nhấn HẠCH TOÁN GIẢM CK để '+what+'. Quyền chuyển sang trạng thái 5.'}).link(src,'htg').row();
+  return ['htg'];
+}
+function payOpt(f,src,q,why,check,kh){
+  f.n('dpay',0,{type:'dec',title:q,desc:'Bước thanh toán tiền chỉ thực hiện khi quyền có khoản tiền phải trả cho NĐT.'}).link(src,'dpay').row();
+  f.n('pay',0,{lane:'ctck',title:'Thanh toán tiền cho NĐT',screen:'0402 – tab 3',btn:'THANH TOÁN TIỀN',st:6,check:check,kh:kh,desc:'Vào màn hình 0402 – tab 3, nhấn THANH TOÁN TIỀN để thanh toán '+why+' cho NĐT. Quyền chuyển sang trạng thái 6.'}).e('dpay','pay',{label:'Có',def:true}).row();
+  return ['pay',['dpay',{label:'Không',via:1}]];
+}
+function chuyenGD(f,src,check){
+  f.n('vsdgd',0,{lane:'vsd',type:'ev',title:'VSD: thông báo chuyển sang giao dịch',desc:'VSD gửi thông báo hạch toán chuyển chứng khoán từ chờ giao dịch sang giao dịch.'}).link(src,'vsdgd').row();
+  f.n('ngaygd',0,{lane:'ctck',title:'Chuyển CK chờ giao dịch → giao dịch',screen:'0305 – tab 2',btn:'CHUYỂN ĐỔI',check:check,kh:'Chứng khoán chuyển từ chờ giao dịch sang giao dịch.',desc:'Nhân viên CTCK vào màn hình 0305 – tab 2 nhập ngày giao dịch chính xác theo thông báo (ngày hiện tại hoặc một ngày trong tương lai) và nhấn CHUYỂN ĐỔI.'}).e('vsdgd','ngaygd').row();
+  f.n('dgd',0,{type:'dec',title:'Ngày giao dịch là ngày hiện tại?',desc:'Thời điểm hệ thống chuyển số lượng phụ thuộc vào ngày giao dịch đã nhập.'}).e('ngaygd','dgd').row();
+  f.n('now',0,{lane:'sys',title:'Chuyển ngay TDCN CGD → TDCN',desc:'Ngày giao dịch là hôm nay: hệ thống chuyển ngay số lượng chứng khoán từ chờ giao dịch sang giao dịch cho khách hàng.'})
+   .n('fut',1,{lane:'sys',title:'Đóng ngày T-1: tự chuyển sang TDCN',desc:'Ngày giao dịch ở tương lai: khi chạy đóng ngày trước ngày giao dịch 1 ngày, hệ thống tự chuyển TDCN CGD → TDCN, để đến ngày giao dịch khách hàng có số lượng TDCN để đặt lệnh.'})
+   .e('dgd','now',{label:'Có',def:true}).e('dgd','fut',{label:'Ngày tương lai'}).row();
+  return ['now','fut'];
+}
+function end(f,src,txt){f.n('end',0,{type:'end',title:'Hoàn tất',desc:txt||'Quy trình thực hiện quyền kết thúc.'}).link(src,'end').row();}
+
+const P=[];
+const DIFF_COMMON=['Nút chốt DS hưởng quyền (0402 – tab 1): phần giải thích ghi CHỐT QUYỀN, sơ đồ gốc ghi PHÂN BỔ.','Nhánh hệ thống tự chốt và xác nhận DS khi đóng ngày ĐKCC chỉ có trong phần giải thích, sơ đồ gốc không vẽ.'];
+function def(id,name,sub,build,notes,diffs){var f=new F();build(f);P.push({id:id,name:name,sub:sub,nodes:f.nodes,edges:f.edges,rows:f.r,notes:notes||[],diffs:id==='tong-the'?[]:DIFF_COMMON.concat(diffs||[])});}
+
+const ALLP=['phat-hanh-them','co-phieu-thuong','co-tuc-tien','cp-chuyen-doi','tp-thanh-cp','huy-niem-yet','quyen-khac','chung-quyen'];
+def('tong-the','Quy trình tổng thể','Mục 3 – Giới thiệu · các giai đoạn chung của mọi loại quyền',function(f){
+  f.n('tb',0,{lane:'vsd',type:'ev',title:'VSD thông báo quyền',apps:ALLP,desc:'Mọi quy trình bắt đầu khi VSD gửi thông báo về quyền và ngày đăng ký cuối cùng (ĐKCC).'}).row();
+  f.n('nhap',0,{lane:'ctck',title:'Nhập thông tin quyền theo thông báo VSD',screen:'0401',st:0,apps:ALLP,desc:'Nhân viên CTCK nhập thông tin quyền trên màn hình 0401, mỗi loại quyền một tab (tab 1 phát hành thêm, tab 2–3 cổ phiếu thưởng / cổ tức bằng cổ phiếu, tab 4–6 cổ tức tiền và lãi/gốc trái phiếu, tab 7 cổ phiếu chuyển đổi, tab 8 trái phiếu chuyển đổi, tab 9 ĐHCĐ, tab 10 hủy niêm yết, tab 11 chứng quyền). Quyền ở trạng thái 0.'}).e('tb','nhap').row();
+  f.n('chot',0,{lane:'ctck',title:'Chốt DS hưởng quyền và chốt DS với VSD',screen:'0402 – tab 1',sts:[1,2],st:2,apps:ALLP,desc:'Chốt danh sách hưởng quyền (tự động khi đóng ngày ĐKCC nếu quyền đã nhập trước, hoặc thủ công bằng nút CHỐT QUYỀN), đối chiếu và sửa cho khớp với VSD, rồi XÁC NHẬN. Quyền đi qua trạng thái 1 và 2.'})
+   .n('ck',2,{lane:'ctck',opt:true,title:'Nhập / xuất quyền chờ về khi chuyển khoản CK',desc:'Hai nghiệp vụ đi kèm khi khách hàng chuyển khoản chứng khoán trong lúc có quyền chờ về: nhập quyền khi chứng khoán được chuyển về CTCK có kèm quyền chờ về; xuất quyền khi khách hàng chuyển chứng khoán sang CTCK khác mà vẫn còn quyền chờ về. Tài liệu chưa mô tả chi tiết các bước của hai nghiệp vụ này.'})
+   .e('nhap','chot').e('chot','ck',{opt:true}).e('ck','chot',{back:true,opt:true}).row();
+  f.n('dloai',0,{type:'dec',title:'Quyền được thực hiện bằng gì?',desc:'Sau khi VSD gửi công văn phân bổ và CTCK xác nhận danh sách phân bổ (trạng thái 3), cách thực hiện quyền khác nhau theo loại quyền.'}).e('chot','dloai',{def:true}).row();
+  f.n('thck',0,{lane:'ctck',title:'Thực hiện quyền về dạng chờ giao dịch',screen:'0402 – tab 3',sts:[3,4,5],st:4,apps:['phat-hanh-them','co-phieu-thuong','cp-chuyen-doi','tp-thanh-cp','huy-niem-yet','chung-quyen'],desc:'Hạch toán tăng chứng khoán về tài khoản khách hàng ở dạng tự do chuyển nhượng chờ giao dịch (trạng thái 4). Với quyền hoán đổi, hủy niêm yết hoặc chứng quyền còn có bước hạch toán giảm chứng khoán (trạng thái 5). Tiền cổ phiếu lẻ, tiền giải thể hoặc lãi chứng quyền (nếu có) được thanh toán ở trạng thái 6.'})
+   .n('tien',1,{lane:'ctck',title:'Thanh toán tiền cổ tức, lãi/gốc trái phiếu',screen:'0402 – tab 3',btn:'THANH TOÁN TIỀN',sts:[3,6],st:6,apps:['co-tuc-tien'],desc:'Thanh toán tiền cổ tức, lãi hoặc gốc trái phiếu về tài khoản khách hàng khi có thông báo của VSD. Quyền chuyển sang trạng thái 6.'})
+   .n('khac',2,{lane:'ctck',title:'Dừng sau khi xác nhận DS hưởng quyền',apps:['quyen-khac'],desc:'Quyền ĐHCĐ và các quyền khác chỉ cần chốt và xác nhận danh sách hưởng quyền với VSD (trạng thái 2).'})
+   .e('dloai','thck',{label:'Chứng khoán',def:true}).e('dloai','tien',{label:'Tiền'}).e('dloai','khac',{label:'Không phân bổ'}).row();
+  f.n('gd',0,{lane:'ctck',title:'Chuyển chờ giao dịch sang giao dịch',screen:'0305 – tab 2',apps:['phat-hanh-them','co-phieu-thuong','cp-chuyen-doi','tp-thanh-cp'],desc:'Khi VSD có thông báo, nhân viên CTCK nhập ngày giao dịch trên màn hình 0305 – tab 2. Hệ thống chuyển số lượng từ TDCN CGD sang TDCN ngay (nếu là ngày hiện tại) hoặc khi đóng ngày trước ngày giao dịch 1 ngày. Hủy niêm yết và chứng quyền chỉ hạch toán giảm nên không có bước này.'}).e('thck','gd').row();
+  end(f,['gd','tien','khac'],'Chọn một quy trình chi tiết bên dưới để xem từng bước thao tác.');
+  var e=f.nodes[f.nodes.length-1];e.apps=ALLP;
+},[
+  'Nhập thông tin quyền theo thông báo của VSD.',
+  'Chốt danh sách hưởng quyền và chốt danh sách với VSD.',
+  'Thực hiện quyền về dạng chờ giao dịch (với chứng khoán) hoặc thanh toán tiền cổ tức khi có thông báo của VSD.',
+  'Chuyển chứng khoán từ chờ giao dịch sang giao dịch khi có thông báo của VSD.',
+  'Nhập quyền khi có chuyển khoản chứng khoán về CTCK kèm quyền chờ về.',
+  'Xuất quyền khi chuyển khoản chứng khoán sang CTCK khác mà khách hàng có quyền chờ về.'
+]);
+
+def('phat-hanh-them','Quyền phát hành thêm','Quyền mua chứng khoán phát hành thêm · màn hình 0401 – tab 1',function(f){
+  var j=prefix(f,{screen:'0401 – tab 1',what:'quyền mua chứng khoán phát hành thêm trên màn hình 0401 – tab 1',vsdList:'VSD chuyển danh sách người sở hữu chứng khoán lưu ký được phân bổ quyền mua chứng khoán (mẫu 13/THQ).',xnExtra:' Hệ thống gửi Email/SMS thông báo quyền mua đến các NĐT được hưởng quyền.'});
+  f.n('email',0,{lane:'sys',title:'Gửi Email/SMS thông báo quyền mua',kh:'SMS/Email thông báo số lượng quyền được hưởng, giá mua và thời hạn đăng ký mua.',desc:'Sau khi danh sách được xác nhận (trạng thái 2), hệ thống gửi Email/SMS thông báo quyền mua đến danh sách NĐT được hưởng quyền.'}).link(j,'email').row();
+  f.n('d3',0,{lane:'ndt',type:'dec',title:'NĐT thực hiện quyền mua thế nào?',desc:'NĐT chỉ đăng ký mua được khi còn thời hạn đăng ký và quyền ở trạng thái 2. Danh sách quyền chỉ hiển thị ở màn hình 0403 – tab 1 / tab 2 trong điều kiện này.'}).e('email','d3').row();
+  f.n('online',0,{lane:'ndt',title:'NĐT đăng ký mua online',desc:'NĐT đăng ký mua chứng khoán trên các kênh online của CTCK.'})
+   .n('quay',1,{lane:'ctck',title:'Đăng ký mua tại quầy',screen:'0403 – tab 1',desc:'NĐT đến quầy giao dịch. Nhân viên CTCK vào màn hình 0403 – tab 1 để đăng ký cho khách hàng. Đăng ký xong sẽ có bút toán chờ duyệt trên #0801.'})
+   .n('cn',2,{lane:'ctck',opt:true,title:'Chuyển nhượng quyền mua',screen:'0403 – tab 2',desc:'Nếu NĐT muốn chuyển nhượng quyền, nhân viên CTCK vào màn hình 0403 – tab 2 để thực hiện giao dịch chuyển nhượng. Bút toán chờ duyệt trên #0801; sau khi duyệt, hệ thống tăng quyền mua cho NĐT nhận chuyển nhượng. Người nhận có thể đăng ký mua chứng khoán phát hành thêm.'})
+   .e('d3','online',{label:'Online',def:true}).e('d3','quay',{label:'Tại quầy'}).e('d3','cn',{label:'Chuyển nhượng',opt:true}).e('cn','d3',{back:true,opt:true}).row();
+  f.n('duyet',0,{lane:'ctck',title:'Kiểm tra và duyệt đăng ký',screen:'0801',desc:'Nhân viên CTCK vào màn hình 0801 kiểm tra thông tin đăng ký của khách hàng và duyệt (cả đăng ký online lẫn bút toán đăng ký tại quầy).'}).e('online','duyet').e('quay','duyet').row();
+  f.n('sms',0,{lane:'sys',title:'Gửi SMS/Email thông báo cắt tiền mua',kh:'SMS/Email cắt tiền thanh toán mua chứng khoán thành công.',desc:'Sau khi duyệt, hệ thống gửi SMS/Email thông báo cắt tiền mua chứng khoán phát hành thêm đến khách hàng.'}).e('duyet','sms').row();
+  f.n('d4',0,{type:'dec',title:'Hết hạn đăng ký: có NĐT đặt mua?',desc:'Sau khi hết hạn đăng ký mua, nhân viên CTCK in mẫu báo cáo gửi VSD. Mẫu cần in phụ thuộc vào việc có NĐT đặt mua hay không.'}).e('sms','d4').row();
+  f.n('mau',0,{lane:'ctck',title:'In hồ sơ gửi VSD (mẫu 20/THQ, 19/THQ)',screen:'0800 – tab 1',desc:'Vào #0800 – tab 1 in báo cáo 049003 (mẫu 20/THQ) và báo cáo mẫu 19/THQ để gửi VSD. Lưu ý: phần giải thích ghi mẫu 19/THQ là báo cáo 049004, còn sơ đồ gốc ghi 049002 (049004 trong sơ đồ gốc là mẫu 03/THQ). Cần xác nhận lại mã báo cáo.'})
+   .n('mau0',1,{lane:'ctck',title:'In mẫu 048011 gửi VSD',screen:'0800 – tab 1',desc:'Không có NĐT nào đặt mua: in báo cáo 048011 trên #0800 – tab 1 để gửi VSD.'})
+   .e('d4','mau',{label:'Có',def:true}).e('d4','mau0',{label:'Không'}).row();
+  var a=alloc(f,['mau','mau0'],{letter:'VSD: thông báo phân bổ chứng khoán',letterDesc:'VSD gửi thông báo phân bổ chứng khoán kèm danh sách nhà đầu tư được phân bổ chứng khoán do đặt mua.',edit:'Sửa ngày hạch toán tăng CK',screen:'0401 – tab 1',editDesc:'Vào màn hình 0401 – tab 1 sửa ngày hạch toán tăng chứng khoán cho giống với VSD.'});
+  end(f,chuyenGD(f,htTang(f,a,null,'SMS/Email hạch toán tăng cổ phiếu do mua chứng khoán phát hành thêm.')));
+},[
+  'Quyền ở trạng thái 3 trở về trước có thể hủy bước để thao tác lại. Ví dụ: quyền đang ở trạng thái 2, muốn về trạng thái 1 để sửa thì vào 0402 – tab 1, nhấn HỦY XÁC NHẬN.',
+  'Từ trạng thái 4 (Hạch toán tăng cổ phiếu) trở đi không thể hủy thao tác.',
+  'Chỉ quyền ở trạng thái 1 mới được sửa số lượng chốt quyền.',
+  'Quyền ở trạng thái 2 và còn trong thời hạn đăng ký mua / chuyển nhượng mới hiển thị ở màn hình 0403 – tab 1 / tab 2.'
+],[
+  'Mã báo cáo mẫu 19/THQ: phần giải thích ghi 049004, sơ đồ gốc ghi 049002. Sơ đồ gốc dùng 049004 cho mẫu 03/THQ (thông báo xác nhận danh sách).',
+  'Kênh đăng ký mua online chỉ có trong phần giải thích; sơ đồ gốc chỉ vẽ đăng ký / chuyển nhượng qua CTCK (0403 – tab 1 / tab 2).'
+]);
+
+def('co-phieu-thuong','Cổ phiếu thưởng + Cổ tức bằng cổ phiếu','Cổ phiếu thưởng: 0401 – tab 2 · Cổ tức bằng cổ phiếu: 0401 – tab 3',function(f){
+  var j=prefix(f,{screen:'0401 – tab 2 / 3',what:'quyền cổ phiếu thưởng (0401 – tab 2) hoặc cổ tức bằng cổ phiếu (0401 – tab 3)',vsdList:'VSD chuyển danh sách người sở hữu chứng khoán lưu ký được nhận cổ tức bằng cổ phiếu / cổ phiếu thưởng.'});
+  var a=alloc(f,j,{letter:'VSD: thông báo ngày hạch toán CK',letterDesc:'VSD gửi thông báo ngày hạch toán chứng khoán, kèm danh sách nhà đầu tư được phân bổ.',edit:'Sửa ngày hạch toán tăng CK',screen:'0401 – tab 2 / 3',editDesc:'Sửa ngày hạch toán tăng chứng khoán cho giống với VSD: cổ phiếu thưởng ở #0401 – tab 2, cổ tức bằng cổ phiếu ở #0401 – tab 3.'});
+  var p=payOpt(f,htTang(f,a,null,'SMS/Email hạch toán tăng cổ phiếu do quyền cổ phiếu thưởng / cổ tức bằng cổ phiếu.'),'Có thanh toán tiền cổ phiếu lẻ?','tiền cổ phiếu lẻ');
+  end(f,chuyenGD(f,p));
+});
+
+def('co-tuc-tien','Cổ tức bằng tiền + Lãi/gốc trái phiếu','Cổ tức tiền: 0401 – tab 4 · Lãi trái phiếu: tab 5 · Gốc trái phiếu: tab 6',function(f){
+  var j=prefix(f,{money:true,screen:'0401 – tab 4 / 5 / 6',what:'quyền cổ tức bằng tiền (0401 – tab 4), lãi trái phiếu (tab 5) hoặc gốc trái phiếu (tab 6)',vsdList:'VSD chuyển danh sách người sở hữu chứng khoán lưu ký được nhận cổ tức bằng tiền, lãi/gốc trái phiếu.'});
+  var a=alloc(f,j,{letter:'VSD: thông báo ngày phân bổ tiền',letterDesc:'VSD gửi thông báo ngày phân bổ cổ tức, lãi/gốc trái phiếu cho nhà đầu tư.',edit:'Sửa ngày thanh toán tiền',screen:'0401 – tab 4 / 5 / 6',editDesc:'Vào màn hình 0401 – tab 4 / 5 / 6 (theo loại quyền) sửa ngày thanh toán tiền cho giống với VSD.'});
+  f.n('pay',0,{lane:'ctck',title:'Thanh toán tiền cho NĐT',screen:'0402 – tab 3',btn:'THANH TOÁN TIỀN',st:6,kh:'SMS/Email tăng tiền do thanh toán cổ tức bằng tiền hoặc lãi/gốc trái phiếu.',desc:'Vào màn hình 0402 – tab 3, nhấn THANH TOÁN TIỀN để thanh toán tiền về tài khoản khách hàng. Quyền chuyển sang trạng thái 6.'}).link(a,'pay').row();
+  f.n('dtp',0,{type:'dec',title:'Là quyền thanh toán lãi và gốc trái phiếu?',desc:'Với quyền thanh toán lãi và gốc trái phiếu, hệ thống còn một bước tự động sau khi trả tiền.'}).e('pay','dtp').row();
+  f.n('huytp',0,{lane:'sys',title:'Tự động hủy số lượng trái phiếu',desc:'Sau khi thanh toán xong tiền lãi và gốc trái phiếu, hệ thống tự động hủy số lượng trái phiếu này.'}).e('dtp','huytp',{label:'Có'}).row();
+  end(f,['huytp',['dtp',{label:'Không',via:1,def:true}]]);
+},null,['Bước hệ thống tự hủy số lượng trái phiếu sau khi trả lãi và gốc chỉ có trong phần giải thích, sơ đồ gốc không vẽ.']);
+
+def('cp-chuyen-doi','Cổ phiếu chuyển đổi cổ phiếu','Hoán đổi cổ phiếu · màn hình 0401 – tab 7',function(f){
+  var j=prefix(f,{screen:'0401 – tab 7',what:'quyền cổ phiếu chuyển đổi cổ phiếu trên màn hình 0401 – tab 7',vsdList:'VSD chuyển danh sách người sở hữu chứng khoán lưu ký (mẫu 41/THQ).'});
+  var a=alloc(f,j,{letter:'VSD: thông báo ngày hoán đổi cổ phiếu',letterDesc:'VSD gửi thông báo ngày thực hiện hoán đổi cổ phiếu.',edit:'Sửa ngày hạch toán tăng và giảm CK',screen:'0401 – tab 7',editDesc:'Vào màn hình 0401 – tab 7 sửa ngày hạch toán tăng chứng khoán và ngày hạch toán giảm chứng khoán cho giống với VSD.'});
+  var g=htGiam(f,htTang(f,a,CHK_HT,'SMS/Email hạch toán tăng cổ phiếu do quyền cổ phiếu chuyển đổi cổ phiếu.'),'hủy đăng ký cổ phiếu bị hoán đổi',CHK_HT);
+  end(f,chuyenGD(f,payOpt(f,g,'Có thanh toán tiền cổ phiếu lẻ?','tiền cổ phiếu lẻ',CHK_PAY),CHK_GD));
+});
+
+def('tp-thanh-cp','Trái phiếu chuyển đổi thành cổ phiếu','Chuyển đổi trái phiếu · màn hình 0401 – tab 8',function(f){
+  var j=prefix(f,{screen:'0401 – tab 8',what:'quyền trái phiếu chuyển đổi cổ phiếu trên màn hình 0401 – tab 8',vsdList:'VSD chuyển danh sách người sở hữu trái phiếu chuyển đổi.'});
+  var a=alloc(f,j,{letter:'VSD: xác nhận ngày chuyển đổi trái phiếu',letterDesc:'VSD gửi xác nhận ngày phân bổ trái phiếu chuyển đổi / ngày hủy đăng ký trái phiếu chuyển đổi.',edit:'Sửa ngày hạch toán tăng và giảm CK',screen:'0401 – tab 8',editDesc:'Vào màn hình 0401 – tab 8 sửa ngày hạch toán tăng và ngày hạch toán giảm chứng khoán cho giống với VSD. Nếu quyền có thanh toán tiền cổ phiếu lẻ thì sửa cả ngày thanh toán tiền.'});
+  var g=htGiam(f,htTang(f,a,CHK_HT,'SMS/Email hạch toán tăng cổ phiếu do quyền trái phiếu chuyển đổi cổ phiếu.'),'hủy đăng ký trái phiếu bị hoán đổi',CHK_HT);
+  end(f,chuyenGD(f,payOpt(f,g,'Có thanh toán tiền cổ phiếu lẻ?','tiền cổ phiếu lẻ',CHK_PAY),CHK_GD));
+});
+
+def('huy-niem-yet','Quyền hủy niêm yết','Hủy niêm yết · màn hình 0401 – tab 10',function(f){
+  var j=prefix(f,{screen:'0401 – tab 10',what:'quyền hủy niêm yết trên màn hình 0401 – tab 10',vsdList:'VSD gửi danh sách NĐT sở hữu chứng khoán hủy niêm yết.'});
+  var a=alloc(f,j,{letter:'VSD: thông báo ngày hủy niêm yết',letterDesc:'VSD gửi thông báo ngày thực hiện hủy niêm yết / ngày thanh toán tiền giải thể.',edit:'Sửa ngày hạch toán giảm CK, ngày thanh toán',screen:'0401 – tab 10',editDesc:'Vào màn hình 0401 – tab 10 sửa ngày hạch toán giảm chứng khoán, và ngày thanh toán tiền (nếu TCPH có trả tiền cho cổ đông), cho giống với VSD.'});
+  var g=htGiam(f,a,'hủy chứng khoán niêm yết',CHK_HT);
+  end(f,payOpt(f,g,'Có thanh toán tiền giải thể?','tiền giải thể',CHK_PAY,'SMS/Email tăng tiền do thanh toán tiền cổ phiếu hủy niêm yết.'));
+});
+
+def('quyen-khac','Quyền khác (ĐHCĐ)','Quyền đại hội cổ đông · màn hình 0401 – tab 9',function(f){
+  var j=prefix(f,{screen:'0401 – tab 9',what:'quyền đại hội cổ đông trên màn hình 0401 – tab 9',vsdList:'VSD gửi danh sách NĐT được phân bổ quyền bỏ phiếu (mẫu 08/THQ).'});
+  end(f,j,'Quy trình kết thúc khi danh sách hưởng quyền đã được xác nhận (trạng thái 2) và VSD đã nhận thông báo xác nhận.');
+});
+
+def('chung-quyen','Thực hiện chứng quyền','Đáo hạn chứng quyền · màn hình 0401 – tab 11',function(f){
+  var j=prefix(f,{screen:'0401 – tab 11',what:'thông tin thực hiện chứng quyền trên màn hình 0401 – tab 11',vsdList:'VSD gửi danh sách người sở hữu chứng quyền.',confirmTitle:'Xác nhận bằng chứng từ điện tử (mẫu 15/CW)',confirmScreen:'',confirmDesc:'Gửi xác nhận danh sách cho VSD dưới dạng chứng từ điện tử (mẫu 15/CW).'});
+  var a=alloc(f,j,{letter:'VSD: xác nhận ngày thực hiện chứng quyền',letterDesc:'VSD gửi xác nhận ngày thực hiện chứng quyền / ngày thanh toán lãi (nếu chứng quyền có lãi).',edit:'Sửa ngày hạch toán giảm CK, ngày thanh toán',screen:'0401 – tab 11',editDesc:'Vào màn hình 0401 – tab 11 sửa ngày hạch toán giảm chứng khoán, và ngày thanh toán tiền (nếu là chứng quyền có lãi), cho giống với VSD.'});
+  var g=htGiam(f,a,'hủy đăng ký chứng quyền',CHK_HT);
+  end(f,payOpt(f,g,'Chứng quyền có lãi?','tiền lãi chứng quyền',CHK_PAY,'SMS/Email thanh toán lãi chứng quyền.'));
+});
+
+/* ---------- layout ---------- */
+const COLW=252,NW=216,NH=62,ROWH=100,PX=14,PY=18,G=14;
+const cx=function(c){return PX+c*COLW+COLW/2;};
+let proc,byId,outs,hist,timer=null;
+const $=function(id){return document.getElementById(id);};
+const esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+
+function rect(n){var x=cx(n.c)-NW/2,y=PY+n.r*ROWH;return{x:x,y:y,w:NW,h:NH,cx:cx(n.c),cy:y+NH/2};}
+function route(e,a,b){
+  var A=a.R,B=b.R;
+  if(e.back){var x=A.x+A.w+G;return{p:[[A.x+A.w,A.cy],[x,A.cy],[x,B.y-G],[B.cx,B.y-G],[B.cx,B.y]],lab:null};}
+  if(a.r===b.r){return a.c<b.c?{p:[[A.x+A.w,A.cy],[B.x,B.cy]],lab:[(A.x+A.w+B.x)/2,A.cy-7,'middle']}:{p:[[A.x,A.cy],[B.x+B.w,B.cy]],lab:[(A.x+B.x+B.w)/2,A.cy-7,'middle']};}
+  if(e.via!=null||(a.type==='dec'&&a.c!==b.c)){var vx=cx(e.via!=null?e.via:b.c),sx=vx>A.cx?A.x+A.w:A.x;
+    return{p:[[sx,A.cy],[vx,A.cy],[vx,B.y-G],[B.cx,B.y-G],[B.cx,B.y]],lab:[vx+7,A.cy+18,'start']};}
+  var st=b.r>a.r?A.y+A.h:A.y;
+  return{p:[[A.cx,st],[A.cx,B.y-G],[B.cx,B.y-G],[B.cx,B.y]],lab:[A.cx+8,A.y+A.h+15,'start']};
+}
+function d(p){var q=[];p.forEach(function(pt){var l=q[q.length-1];if(!l||l[0]!==pt[0]||l[1]!==pt[1])q.push(pt);});return 'M'+q.map(function(pt){return pt[0]+','+pt[1];}).join(' L');}
+
+function load(id,keep){
+  stop();
+  proc=P.find(function(p){return p.id===id;})||P[0];
+  byId={};outs={};
+  proc.nodes.forEach(function(n){n.R=rect(n);byId[n.id]=n;outs[n.id]=[];});
+  proc.edges.forEach(function(e,i){e.i=i;outs[e.from].push(e);});
+  var maxC=Math.max.apply(null,proc.nodes.map(function(n){return n.c;}).concat([2]));
+  var W=PX*2+(maxC+1)*COLW,H=PY*2+(proc.rows-1)*ROWH+NH;
+  var cv=$('canvas');cv.style.width=W+'px';cv.style.height=H+'px';
+  var svg=$('edges');svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('width',W);svg.setAttribute('height',H);
+  var s='<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ah-on" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto"><path class="mk-on" d="M0,0 L10,5 L0,10 z"/></marker></defs>';
+  proc.edges.forEach(function(e){var r=route(e,byId[e.from],byId[e.to]);
+    s+='<g class="edge'+(e.opt?' opt':'')+'" data-i="'+e.i+'"><path class="l" d="'+d(r.p)+'" marker-end="url(#ah)"/>'+(e.label&&r.lab?'<text x="'+r.lab[0]+'" y="'+r.lab[1]+'" text-anchor="'+r.lab[2]+'">'+esc(e.label)+'</text>':'')+'</g>';});
+  svg.innerHTML=s;
+  var h='';
+  proc.nodes.forEach(function(n){var R=n.R,cls='node'+(n.lane?' l-'+n.lane:'')+(n.type?' '+n.type:'')+(n.opt?' opt':'');
+    var st='left:'+R.x+'px;top:'+R.y+'px;width:'+R.w+'px;height:'+R.h+'px';
+    var lab=esc(n.title)+(n.lane?' – '+LANES[n.lane]:'');
+    if(n.type==='dec') h+='<button type="button" class="'+cls+'" style="'+st+'" data-id="'+n.id+'" aria-label="Rẽ nhánh: '+lab+'"><span class="in"><span class="t">'+esc(n.title)+'</span></span></button>';
+    else if(n.type==='ev'||n.type==='end') h+='<button type="button" class="'+cls+'" style="'+st+'" data-id="'+n.id+'" aria-label="'+lab+'">'+(n.lane?'<span class="lane">'+LANES[n.lane]+'</span>':'')+'<span class="t">'+esc(n.title)+'</span></button>';
+    else h+='<button type="button" class="'+cls+'" style="'+st+'" data-id="'+n.id+'" aria-label="'+lab+'"><span class="meta"><span class="lane">'+LANES[n.lane]+(n.opt?' · tùy chọn':'')+'</span>'+(n.screen?'<span class="scr">#'+esc(n.screen.slice(0,4))+'</span>':'')+'</span><span class="t">'+esc(n.title)+'</span></button>';});
+  $('nodes').innerHTML=h;
+  $('pTitle').textContent=proc.name;$('pSub').textContent=proc.sub;
+  $('notes').innerHTML=(proc.diffs.length?'<div class="notes diff"><h3>Đã đối chiếu với sơ đồ Visio gốc · chỗ khác với phần giải thích</h3><ul>'+proc.diffs.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul></div>':'')+(proc.notes.length?'<div class="notes"><h3>'+(proc.id==='tong-the'?'Nội dung mục 3 – Giới thiệu':'Ghi chú')+'</h3><ul>'+proc.notes.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul></div>':'');
+  document.querySelectorAll('#procs button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.id===proc.id);});
+  hist=[{id:proc.nodes[0].id,e:null}];
+  if(!keep){try{history.replaceState(null,'','#'+proc.id);}catch(_){location.hash=proc.id;}}
+  update(false);
+}
+
+function cur(){return byId[hist[hist.length-1].id];}
+function defEdge(n){var o=outs[n.id];return o.find(function(e){return e.def;})||o[0];}
+function go(e){if(!e)return;hist.push({id:e.to,e:e.i});update(true);}
+function next(){var n=cur(),e=defEdge(n);if(!e){stop();return false;}go(e);return true;}
+function back(){if(hist.length>1){hist.pop();update(true);}}
+function jump(id){var n=cur();if(id===n.id)return;var e=outs[n.id].find(function(x){return x.to===id;});if(e){go(e);return;}hist.push({id:id,e:null});update(true);}
+function reset(){stop();hist=[hist[0]];update(true);}
+function play(){if(timer){stop();return;}if(!defEdge(cur()))hist=[hist[0]],update(true);
+  timer=setInterval(function(){if(!next())stop();},1500);$('btnPlay').textContent='❚❚ Dừng';}
+function stop(){if(timer){clearInterval(timer);timer=null;}var b=$('btnPlay');if(b)b.textContent='▶ Tự chạy';}
+
+function statusInfo(){var passed=new Set(),last=null;hist.forEach(function(h){var n=byId[h.id];(n.sts||[]).forEach(function(s){passed.add(s);});if(n.st!=null){passed.add(n.st);last=n.st;}});return{passed:passed,last:last};}
+
+function update(scroll){
+  var n=cur(),vis=new Set(hist.map(function(h){return h.id;})),taken=new Set(hist.map(function(h){return h.e;}).filter(function(x){return x!=null;}));
+  var nexts=new Set(outs[n.id].map(function(e){return e.i;}));
+  document.querySelectorAll('#nodes .node').forEach(function(el){var id=el.dataset.id;el.classList.toggle('vis',vis.has(id));el.classList.toggle('cur',id===n.id);el.setAttribute('aria-current',id===n.id?'step':'false');});
+  document.querySelectorAll('#edges .edge').forEach(function(g){var i=+g.dataset.i,t=taken.has(i),x=!t&&nexts.has(i);g.classList.toggle('taken',t);g.classList.toggle('next',x);g.querySelector('path').setAttribute('marker-end',(t||x)?'url(#ah-on)':'url(#ah)');});
+  // status bar
+  var used=new Set();proc.nodes.forEach(function(m){if(m.st!=null)used.add(m.st);(m.sts||[]).forEach(function(s){used.add(s);});});
+  var si=statusInfo();
+  $('statusBar').innerHTML=ST.map(function(t,i){var c=!used.has(i)?'unused':(i===si.last?'cur':(si.passed.has(i)?'passed':''));return '<li class="'+c+'"'+(!used.has(i)?' title="Không dùng trong quy trình này"':'')+'><span class="dot">'+(si.passed.has(i)&&i!==si.last?'✓':i)+'</span><span>'+t+'</span></li>';}).join('');
+  // progress
+  var total=proc.nodes.length;$('prog').style.width=Math.min(100,Math.round(vis.size/total*100))+'%';
+  // detail
+  var h='<span class="chip'+(n.lane?' l-'+n.lane:'')+'">'+(n.type==='dec'?'Điểm rẽ nhánh':n.type==='end'?'Kết thúc':n.lane?LANES[n.lane]:'')+'</span>';
+  h+='<h3>'+esc(n.title)+'</h3>';
+  var meta='';
+  meta+='<dt>Bước</dt><dd>'+hist.length+'</dd>';
+  if(n.type==='dec'&&n.lane)meta+='<dt>Người quyết định</dt><dd>'+LANES[n.lane]+'</dd>';
+  if(n.screen)meta+='<dt>Màn hình</dt><dd><code class="scr">'+esc(n.screen)+'</code></dd>';
+  if(n.btn)meta+='<dt>Nút bấm</dt><dd><kbd>'+esc(n.btn)+'</kbd></dd>';
+  if(n.st!=null)meta+='<dt>Trạng thái</dt><dd><span class="stpill"><b>'+n.st+'</b>'+ST[n.st]+'</span>'+(n.id==='sua'?' <span style="color:var(--muted)">(giữ nguyên)</span>':'')+'</dd>';
+  if(n.kh)meta+='<dt>Khách hàng nhận</dt><dd>'+esc(n.kh)+'</dd>';
+  h+='<dl>'+meta+'</dl>';
+  h+='<p class="desc">'+esc(n.desc||'')+'</p>';
+  if(n.check)h+='<div class="check"><b>Kiểm tra dữ liệu</b>'+esc(n.check)+'</div>';
+  if(n.apps)h+='<div class="apps"><p>Xem chi tiết trong quy trình</p><div>'+n.apps.map(function(id){var q=P.find(function(p){return p.id===id;});return '<button type="button" class="appbtn" data-p="'+id+'">'+esc(q.name)+' →</button>';}).join('')+'</div></div>';
+  var o=outs[n.id];
+  if(n.type==='dec'){h+='<div class="choices"><p>Chọn tình huống</p>'+o.map(function(e){return '<button type="button" class="choice" data-e="'+e.i+'"><b>'+esc(e.label||'Tiếp')+'</b><span>→ '+esc(byId[e.to].title)+'</span></button>';}).join('')+'</div>';}
+  else if(o.length===0){h+='<p class="hint">Đã đến cuối quy trình. Bấm <b>Quay lại</b> để xem lại, hoặc <b>Làm lại</b> để chạy lại từ đầu với nhánh khác.</p>';}
+  else if(o.length===1){h+='<p class="hint">Bước tiếp theo: '+esc(byId[o[0].to].title)+'</p>';}
+  $('detail').innerHTML=h;
+  $('btnBack').disabled=hist.length<2;
+  var nb=$('btnNext');
+  if(o.length===0){nb.textContent='↺ Làm lại';nb.dataset.mode='reset';}
+  else{var de=defEdge(n);nb.textContent=n.type==='dec'?'Tiếp ('+de.label+') →':'Tiếp →';nb.dataset.mode='next';}
+  if(scroll){var el=document.querySelector('#nodes .node.cur');if(el){var rm=window.matchMedia('(prefers-reduced-motion: reduce)').matches;el.scrollIntoView({block:'nearest',inline:'nearest',behavior:rm?'auto':'smooth'});}}
+}
+
+/* ---------- wiring ---------- */
+$('procs').innerHTML=P.map(function(p,i){return '<button type="button" data-id="'+p.id+'" aria-pressed="false"><span class="n">'+String(i+3).padStart(2,'0')+'</span>'+esc(p.name)+'</button>';}).join('');
+$('procs').addEventListener('click',function(ev){var b=ev.target.closest('button');if(b)load(b.dataset.id);});
+$('nodes').addEventListener('click',function(ev){var b=ev.target.closest('.node');if(b){stop();jump(b.dataset.id);}});
+$('detail').addEventListener('click',function(ev){var b=ev.target.closest('.choice');if(b){stop();go(proc.edges[+b.dataset.e]);return;}
+  var a=ev.target.closest('.appbtn');if(a){load(a.dataset.p);document.querySelector('.board').scrollIntoView({block:'start'});}});
+$('btnNext').addEventListener('click',function(){stop();if(this.dataset.mode==='reset')reset();else next();});
+$('btnBack').addEventListener('click',function(){stop();back();});
+$('btnPlay').addEventListener('click',play);
+document.addEventListener('keydown',function(ev){if(ev.target.closest('input,textarea,select'))return;
+  if(ev.key==='ArrowRight'){ev.preventDefault();stop();if(defEdge(cur()))next();}
+  else if(ev.key==='ArrowLeft'){ev.preventDefault();stop();back();}});
+const ABBR=[
+  ['CTCK','Công ty chứng khoán',1],['TCPH','Tổ chức phát hành',1],['TTLK','Trung tâm lưu ký',1],['VSD','Trung tâm lưu ký chứng khoán',1],
+  ['TVLK','Thành viên lưu ký',1],['Số ĐKNSH','Số đăng ký người sở hữu',1],['SL TDCN','Số lượng tự do chuyển nhượng',1],
+  ['SL HCCN','Số lượng hạn chế chuyển nhượng',1],['SL TDCN CGD','Số lượng tự do chuyển nhượng chờ giao dịch',1],
+  ['SL HCCN CGD','Số lượng hạn chế chuyển nhượng chờ giao dịch',1],['KH','Khách hàng',1],['TK','Tài khoản',1],
+  ['Ngày ĐKCC','Ngày đăng ký cuối cùng',1],['ĐHCĐ','Đại hội cổ đông',1],
+  ['NĐT','Nhà đầu tư',0],['DS','Danh sách',0],['CK','Chứng khoán',0],['CP','Cổ phiếu',0],['TP','Trái phiếu',0],
+  ['CQ','Chứng quyền',0],['GD','Giao dịch',0],['THQ','Thực hiện quyền (trong tên mẫu báo cáo, ví dụ 20/THQ)',0],
+  ['T-1','Ngày làm việc liền trước ngày giao dịch',0]
+];
+$('abbrBody').innerHTML=ABBR.map(function(a){return '<tr data-k="'+esc((a[0]+' '+a[1]).toLowerCase())+'"><td>'+esc(a[0])+'</td><td>'+esc(a[1])+'</td><td><span class="src'+(a[2]?'':' ext')+'">'+(a[2]?'Tài liệu gốc':'Dùng trong sơ đồ')+'</span></td></tr>';}).join('');
+$('abbrQ').addEventListener('input',function(){var q=this.value.trim().toLowerCase(),n=0;
+  document.querySelectorAll('#abbrBody tr').forEach(function(tr){var ok=!q||tr.dataset.k.indexOf(q)>-1;tr.hidden=!ok;if(ok)n++;});
+  $('abbrEmpty').hidden=n>0;});
+$('toAbbr').addEventListener('click',function(){$('viet-tat').scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});});
+function fromHash(){var h=(location.hash||'').slice(1);return P.some(function(p){return p.id===h;})?h:P[0].id;}
+window.addEventListener('hashchange',function(){var h=fromHash();if(!proc||h!==proc.id)load(h,true);});
+load(fromHash(),true);
+})();
+</script>
+
+</body></html>
