@@ -148,10 +148,17 @@ table.g td.past,table.g th.past{opacity:.55}
 .tgh{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--k);display:flex;gap:6px;align-items:center}
 .tgh span{font-weight:600;color:var(--muted)}
 .dayc{gap:12px}
+#tip{position:fixed;z-index:50;max-width:340px;background:var(--ink);color:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5;box-shadow:0 6px 24px rgba(0,0,0,.25);pointer-events:none;display:none}
+#tip b{display:block;font-size:13.5px;margin-bottom:2px}
+#tip .sub{opacity:.75;font-size:12px;display:block;margin-top:4px}
+#tip .guess{opacity:.7;font-style:italic;font-size:12px;display:block;margin-top:4px}
+[data-tip]{cursor:help}
+.tag[data-tip]:hover,.tag[data-tip]:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
+<div id="tip" role="tooltip"></div>
 <div class="wrap">
 
 <header>
@@ -195,7 +202,7 @@ table.g td.past,table.g th.past{opacity:.55}
     </div>
   </div>
   <div class="scroll"><table class="g" id="gantt"></table></div>
-  <p class="muted" style="font-size:13px">Bấm vào một dòng để xem chi tiết các bước và ghi chú bên dưới. Ô viền đứt = ngày nhập có thể chọn (D-4 hoặc D-3).</p>
+  <p class="muted" style="font-size:13px">Rê chuột vào ô màu, mã CK, loại quyền hoặc tiêu đề ngày để xem giải thích. Bấm vào một dòng để xem chi tiết bên dưới. Ô viền đứt = ngày nhập có thể chọn (D-4 hoặc D-3).</p>
   <div class="card detail" id="detail" aria-live="polite"></div>
 </section>
 
@@ -314,19 +321,19 @@ function stepsOf(c){
   if(c.trd!==null) out.push({d:c.trd,k:'TRD',l:'GD'});
   return out;
 }
-const tag = s=>`<span class="tag ${s.opt?'opt':''}" style="${s.opt?'':'background:'+css(STEP[s.k].c)}" title="${STEP[s.k].name}">${s.l}</span>`;
+const tag = (s,c)=>`<span class="tag ${s.opt?'opt':''}" tabindex="0" data-tip="step" data-n="${c.n}" data-k="${s.k}" data-l="${s.l}" data-d="${s.d}" data-opt="${s.opt?1:''}" style="${s.opt?'':'background:'+css(STEP[s.k].c)}">${s.l}</span>`;
 
 let filter='all', selected=11;
 function renderGantt(){
-  const head = `<thead><tr><th class="lab">Case</th>${DAYS.map(d=>`<th class="${BAN(d.i)?'banc':''} ${cls(d.i)}">${d.i===NOW?'● ':''}${d.key}<small>${d.lbl}</small></th>`).join('')}</tr></thead>`;
+  const head = `<thead><tr><th class="lab">Case</th>${DAYS.map(d=>`<th data-tip="day" data-d="${d.i}" class="${BAN(d.i)?'banc':''} ${cls(d.i)}">${d.i===NOW?'● ':''}${d.key}<small>${d.lbl}</small></th>`).join('')}</tr></thead>`;
   let body='';
   [['before','Chốt trước chuyển sàn · RD = D-4'],['after','Chốt sau chuyển sàn · RD = D+2/D+3']].forEach(([s,title])=>{
     if(filter!=='all'&&filter!==s) return;
     body+=`<tr class="grp"><td class="lab" colspan="${DAYS.length+1}">${title}</td></tr>`;
     CASES.filter(c=>c.s===s).forEach(c=>{
       const st=stepsOf(c);
-      body+=`<tr tabindex="0" data-n="${c.n}" class="${c.n===selected?'sel':''}"><td class="lab"><span class="ticker">${c.t}</span> <span class="ca">#${c.n} ${c.vi}</span>${c.man?'<span class="badge m">PROC tay</span>':''}</td>`+
-        DAYS.map(d=>`<td class="day ${BAN(d.i)?'banc':''} ${cls(d.i)}">${st.filter(x=>x.d===d.i).map(tag).join('')}</td>`).join('')+`</tr>`;
+      body+=`<tr tabindex="0" data-n="${c.n}" class="${c.n===selected?'sel':''}"><td class="lab"><span class="ticker" data-tip="tk" data-n="${c.n}">${c.t}</span> <span class="ca" data-tip="ca" data-n="${c.n}">#${c.n} ${c.vi}</span>${c.man?'<span class="badge m" data-tip="man">PROC tay</span>':''}</td>`+
+        DAYS.map(d=>`<td class="day ${BAN(d.i)?'banc':''} ${cls(d.i)}">${st.filter(x=>x.d===d.i).map(x=>tag(x,c)).join('')}</td>`).join('')+`</tr>`;
     });
   });
   $('#gantt').innerHTML = head+'<tbody>'+body+'</tbody>';
@@ -420,6 +427,64 @@ function renderNow(){
   apply();
 }
 renderNow();renderDetail();renderTickers();
+// ===== tooltips =====
+const CA_INFO={
+ 'Meeting CA':'Quyền tham dự Đại hội đồng cổ đông. Cổ đông có tên trong danh sách chốt ngày ĐKCC được mời họp, biểu quyết. Không nhận tiền hay cổ phiếu.',
+ 'Cash dividend':'Cổ tức bằng tiền. Cổ đông có tên ngày ĐKCC được nhận tiền vào tài khoản vào ngày thanh toán.',
+ 'Stock dividend':'Cổ tức bằng cổ phiếu. Cổ đông nhận thêm cổ phiếu theo tỷ lệ; cổ phiếu mới về tài khoản ở bước PROC và được giao dịch từ ngày GD.',
+ 'Bonus issue':'Thưởng cổ phiếu (phát hành từ nguồn vốn chủ sở hữu). Cách xử lý giống cổ tức cổ phiếu: chia CP ở bước PROC, giao dịch từ ngày GD.',
+ 'Right issue':'Quyền mua cổ phiếu phát hành thêm. Cổ đông nhận quyền mua, có thể chuyển nhượng quyền, đăng ký đặt mua và nộp tiền; CP mới về sau khi kết thúc đặt mua.'
+};
+const STEP_INFO={
+ NF:{t:'NF – Nhập quyền',d:'Ngày tạo/nhập thông tin quyền vào hệ thống (cột "Input of date (NF)" trong file).'},
+ RD:{t:'RD – Ngày đăng ký cuối cùng (ĐKCC)',d:'Record date: hệ thống chốt danh sách người sở hữu chứng khoán để được hưởng quyền. Không được rơi vào D-3 → D+1.'},
+ WADM:{t:'WADM',d:'Bước duyệt thứ nhất trong quy trình quyền (cột WADM trong file).',g:'Tên đầy đủ không có trong file; có thể là "chờ duyệt".'},
+ APRDM:{t:'APRDM',d:'Bước duyệt thứ hai, sau WADM (cột APRDM trong file).',g:'Tên đầy đủ không có trong file; có thể là "duyệt".'},
+ PROC:{t:'PROC – Xử lý / phân bổ',d:'Bước hệ thống chia tiền hoặc cổ phiếu vào tài khoản cổ đông (cột "Payment date (PROC step)").'},
+ FIN:{t:'FIN – Kết thúc quyền',d:'Đóng quy trình thực hiện quyền (cột "Finish CA (FIN step)").'},
+ TRD:{t:'GD – Ngày giao dịch đầu tiên',d:'Ngày cổ phiếu mới nhận từ quyền được phép giao dịch (cột "First trading date").'}
+};
+const PROC_SUB={
+ PAY:{t:'PAY – Thanh toán cổ tức tiền',d:'Bước PROC của cổ tức tiền: tiền được chuyển vào tài khoản cổ đông.'},
+ RHITD:{t:'PROC RHITD',d:'Lần PROC thứ nhất của quyền mua; sau bước này bắt đầu chuyển nhượng quyền và đặt mua.',g:'Có thể là phân bổ quyền mua vào tài khoản (suy ra từ thứ tự bước).'},
+ EXRITD:{t:'PROC EXRITD',d:'Lần PROC thứ hai của quyền mua, sau khi hết hạn đặt mua.',g:'Có thể là phân bổ cổ phiếu đã đặt mua (suy ra từ thứ tự bước).'}
+};
+const DAY_INFO={'-4':'Ngày ĐKCC của nhóm "chốt trước chuyển sàn"; có thể nhập quyền từ ngày này.',
+ '-3':'Ngày GD cuối cùng tại HNX. Nhập RG cho nhóm mã RG D-3. Bắt đầu vùng cấm ĐKCC.',
+ '-2':'Ngừng giao dịch. Nhập RG cho nhóm mã RG D-2.',
+ '-1':'Ngừng giao dịch. Nhập các ngày chuyển sàn, hiệu lực chuyển sàn cuối ngày (EOD).',
+ '0':'Ngày GD đầu tiên tại HOSE; hiệu lực hủy niêm yết tại HNX.',
+ '1':'Ngày cuối của vùng cấm ĐKCC (D-3 → D+1).'};
+function tipHTML(el){
+  const t=el.dataset.tip, c=CASES.find(x=>x.n==el.dataset.n);
+  if(t==='step'){
+    const k=el.dataset.k,l=el.dataset.l,d=dayOf(+el.dataset.d);
+    const info=(k==='PROC'&&PROC_SUB[l])?PROC_SUB[l]:STEP_INFO[k];
+    let extra='';
+    if(k==='NF'&&el.dataset.opt) extra='Viền đứt: file ghi "D-4 or D-3", được chọn nhập ở một trong hai ngày.';
+    if(k==='PROC'&&c.man) extra='Case này phải kích hoạt PROC thủ công.';
+    if(k==='RD') extra=c.s==='before'?'Chốt trước khi chuyển sàn: mã còn ở HNX khi chốt danh sách.':'Chốt sau khi chuyển sàn: mã đã lên HOSE khi chốt danh sách.';
+    return `<b>${info.t}</b>${info.d}${extra?`<span class="sub">${extra}</span>`:''}${info.g?`<span class="guess">${info.g}</span>`:''}<span class="sub">${c.t} · case #${c.n} ${c.ca} · ${d.key} (${d.lbl}/2026)</span>`;
+  }
+  if(t==='ca') return `<b>${c.ca} – ${c.vi}</b>${CA_INFO[c.ca]}<span class="sub">#${c.n} là số thứ tự case trong sheet THQ. Bấm vào dòng để xem chi tiết.</span>`;
+  if(t==='tk'){const g=Object.keys(GROUPS).find(k=>GROUPS[k].includes(c.t));const lbl={rg3:'STX → STO (HNX → HOSE), nhập RG ngày D-3',rg2:'STX → STO (HNX → HOSE), nhập RG ngày D-2',depox:'STX → DEPOX, không niêm yết'}[g];const others=CASES.filter(x=>x.t===c.t).map(x=>'#'+x.n+' '+x.vi).join(', ');return `<b>${c.t} – mã chứng khoán</b>Mã cổ phiếu đang chuyển sàn: ${lbl}.<span class="sub">Dùng trong các case: ${others}</span>`;}
+  if(t==='man') return `<b>PROC tay</b>Bước PROC của case này không tự chạy; tester phải kích hoạt thủ công trên hệ thống.<span class="sub">Ghi chú gốc: "Active PROC step by manually"</span>`;
+  if(t==='day'){const d=dayOf(+el.dataset.d);const ban=BAN(d.i)?'<span class="sub">Nằm trong vùng cấm ĐKCC (D-3 → D+1).</span>':'';return `<b>${d.key} · ${d.lbl}/2026</b>${DAY_INFO[d.i]||'Ngày xử lý tiếp các bước quyền sau chuyển sàn.'}${ban}`;}
+  return '';
+}
+(function(){
+  const tip=document.getElementById('tip');let cur=null;
+  const place=(x,y)=>{const r=tip.getBoundingClientRect();let L=x+14,T=y+16;if(L+r.width>innerWidth-8)L=x-r.width-14;if(L<8)L=8;if(T+r.height>innerHeight-8)T=y-r.height-12;tip.style.left=L+'px';tip.style.top=T+'px';};
+  const show=(el,x,y)=>{const h=tipHTML(el);if(!h)return;cur=el;tip.innerHTML=h;tip.style.display='block';place(x,y);};
+  const hide=()=>{cur=null;tip.style.display='none';};
+  document.addEventListener('mouseover',e=>{const el=e.target.closest('[data-tip]');if(el&&el!==cur)show(el,e.clientX,e.clientY);else if(!el&&cur)hide();});
+  document.addEventListener('mousemove',e=>{if(cur)place(e.clientX,e.clientY);});
+  document.addEventListener('focusin',e=>{const el=e.target.closest('[data-tip]');if(el){const r=el.getBoundingClientRect();show(el,r.left,r.bottom);}});
+  document.addEventListener('focusout',hide);
+  document.addEventListener('touchstart',e=>{const el=e.target.closest('[data-tip]');if(el){const t=e.touches[0];show(el,t.clientX,t.clientY);}else hide();},{passive:true});
+  addEventListener('scroll',()=>{if(cur&&cur.matches(':not(:focus)'))hide();},{passive:true});
+})();
+
 </script>
 </body>
 </html>
