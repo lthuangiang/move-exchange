@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timeline test THQ chuyển sàn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: summary strip → day ruler → Gantt per THQ case → daily checklist → ticker groups → open questions */
+:root{
+  --bg:#f4f6f7; --surface:#ffffff; --ink:#15232b; --muted:#5b6b74; --line:#d9e0e4;
+  --accent:#0b6e8a; --accent-soft:#e1f0f5;
+  --ban:#fbecea; --ban-ink:#9a3b2f;
+  --today:#1f9d55; --today-soft:#e3f5ea; --c-nf:#8a99a2; --c-rd:#0b6e8a; --c-wadm:#4f6fd6; --c-aprdm:#2f49a8; --c-proc:#d7801f; --c-fin:#2e8b57; --c-trade:#8a4fbf;
+  --font-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f171b; --surface:#16222a; --ink:#e4ecef; --muted:#93a4ad; --line:#28363e;
+    --accent:#4cb4d1; --accent-soft:#163846; --ban:#3a1f1c; --ban-ink:#f0a497;
+    --today:#4cc77f; --today-soft:#173a26; --c-nf:#7b8b94; --c-rd:#3aa6c4; --c-wadm:#7d97f0; --c-aprdm:#5b78e0; --c-proc:#e89a42; --c-fin:#47b47a; --c-trade:#b07ee0;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f171b; --surface:#16222a; --ink:#e4ecef; --muted:#93a4ad; --line:#28363e;
+  --accent:#4cb4d1; --accent-soft:#163846; --ban:#3a1f1c; --ban-ink:#f0a497;
+  --today:#4cc77f; --today-soft:#173a26; --c-nf:#7b8b94; --c-rd:#3aa6c4; --c-wadm:#7d97f0; --c-aprdm:#5b78e0; --c-proc:#e89a42; --c-fin:#47b47a; --c-trade:#b07ee0;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--font-body)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:28px;font-weight:700}
+h2{font-size:20px;font-weight:700}
+h3{font-size:15px;font-weight:600}
+p{margin:0;max-width:72ch}
+.muted{color:var(--muted)}
+.mono{font-family:var(--font-mono);font-size:.92em}
+section{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+header{display:flex;flex-direction:column;gap:10px}
+
+/* milestones */
+.ms{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.ms .card{padding:14px;display:flex;flex-direction:column;gap:4px;border-top:3px solid var(--line)}
+.ms .card.k{border-top-color:var(--accent)}
+.ms .d{font-family:var(--font-mono);font-weight:600;font-size:18px}
+.ms .dt{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.rule{border-left:4px solid var(--accent)}
+.rule.ban{border-left-color:var(--ban-ink);background:var(--ban)}
+.rule ul{margin:6px 0 0;padding-left:18px}
+
+/* legend + filters */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;justify-content:space-between}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+button.f{font:inherit;font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button.f[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* gantt */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table.g{border-collapse:collapse;width:100%;min-width:1080px;font-size:13px}
+table.g th,table.g td{border-bottom:1px solid var(--line);padding:6px 4px;vertical-align:middle}
+table.g thead th{position:sticky;top:0;background:var(--surface);font-weight:600;text-align:center;font-variant-numeric:tabular-nums}
+table.g thead th small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+table.g th.lab,table.g td.lab{text-align:left;padding-left:12px;width:210px;position:sticky;left:0;background:var(--surface);z-index:1}
+table.g td.day{text-align:center;min-width:62px;border-left:1px solid var(--line)}
+table.g .banc{background:var(--ban)}
+table.g thead th.banc{color:var(--ban-ink)}
+table.g tbody tr{cursor:pointer}
+table.g tbody tr:hover td{background:var(--accent-soft)}
+table.g tbody tr.sel td{background:var(--accent-soft)}
+table.g tbody tr.sel td.lab{box-shadow:inset 3px 0 0 var(--accent)}
+.grp td{background:var(--bg)!important;font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);cursor:default}
+.tag{display:inline-block;font-family:var(--font-mono);font-size:10.5px;font-weight:600;color:#fff;border-radius:4px;padding:1px 5px;margin:1px;white-space:nowrap}
+.tag.opt{background:transparent!important;border:1px dashed var(--c-nf);color:var(--muted)}
+.ticker{font-family:var(--font-mono);font-weight:600}
+.ca{color:var(--muted);font-size:12px}
+.badge{font-size:11px;border-radius:999px;padding:0 7px;margin-left:6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.b{border-color:var(--c-rd);color:var(--c-rd)}
+.badge.a{border-color:var(--c-trade);color:var(--c-trade)}
+.badge.m{border-color:var(--c-proc);color:var(--c-proc)}
+
+/* detail */
+.detail{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:18px}
+@media (max-width:760px){.detail{grid-template-columns:1fr}}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.steps li{display:grid;grid-template-columns:64px 90px 1fr;gap:8px;align-items:baseline;font-size:14px}
+.steps .dd{font-family:var(--font-mono);font-weight:600}
+.steps .dt{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.notes{font-size:14px;display:flex;flex-direction:column;gap:6px}
+.notes ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+
+/* checklist */
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.dayc{display:flex;flex-direction:column;gap:8px;padding:14px}
+.dayc.banc{border-color:var(--ban-ink)}
+.dayh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.dayh b{font-family:var(--font-mono);font-size:17px}
+.dayh span{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dayc .ev{font-size:12.5px;color:var(--ban-ink);font-weight:500}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.tasks li{display:flex;gap:8px;font-size:13.5px;align-items:flex-start}
+.tasks input{margin-top:3px;flex:none;accent-color:var(--accent)}
+.tasks label{cursor:pointer}
+.tasks li.done label{color:var(--muted);text-decoration:line-through}
+
+/* tickers */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.tl li{display:grid;grid-template-columns:62px 1fr;gap:8px}
+.tl b{font-family:var(--font-mono)}
+.search{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.search input{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:260px;text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:4px;max-height:220px;overflow:auto;padding:2px}
+.chip{font-family:var(--font-mono);font-size:12px;padding:2px 6px;border-radius:4px;background:var(--bg);border:1px solid var(--line)}
+.chip.hot{border-color:var(--accent);color:var(--accent);font-weight:600}
+.chip.hit{background:var(--accent);color:#fff;border-color:var(--accent)}
+.chip.dim{opacity:.25}
+.qa{padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
+footer{font-size:12.5px;color:var(--muted)}
+
+.nowbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;background:var(--today-soft);border:1px solid var(--today);border-radius:10px;padding:12px 16px;position:sticky;top:8px;z-index:5}
+.nowbar b{color:var(--today)}
+.nowbar select{font:inherit;padding:5px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.nowbar .msg{font-size:13.5px}
+table.g thead th.today{background:var(--today);color:#fff}
+table.g thead th.today small{color:#fff}
+table.g td.today{background:var(--today-soft)!important;box-shadow:inset 2px 0 0 var(--today),inset -2px 0 0 var(--today)}
+table.g td.past,table.g th.past{opacity:.55}
+.dayc.today{border:2px solid var(--today);box-shadow:0 0 0 4px var(--today-soft)}
+.dayc.today .dayh b{color:var(--today)}
+.dayc.past{opacity:.6}
+.ms .card.today{border-top-color:var(--today);background:var(--today-soft)}
+.pill{font-size:11px;font-weight:700;color:#fff;background:var(--today);border-radius:999px;padding:1px 8px;margin-left:6px}
+.tg{display:flex;flex-direction:column;gap:5px;border-left:3px solid var(--k);padding-left:10px}
+.tgh{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--k);display:flex;gap:6px;align-items:center}
+.tgh span{font-weight:600;color:var(--muted)}
+.dayc{gap:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Kịch bản test · Thực hiện quyền (THQ) khi chuyển sàn HNX → HOSE</span>
+  <h1>Việc cần làm và timeline test THQ cho các mã chuyển sàn</h1>
+  <p class="muted">Tổng hợp từ file <span class="mono">KB test ĐK THQ cổ phiếu.xlsx</span> (3 sheet: System date, THQ, Các mã chuyển sàn). Theo công văn: <b>D-3 = 16/11/2026</b>, <b>D-1 = 18/11/2026</b>; các ngày còn lại suy ra theo ngày làm việc (bỏ T7, CN). Trên môi trường test, D-3 ứng với ngày hệ thống 13/10/2026.</p>
+</header>
+
+<div class="nowbar" role="region" aria-label="Ngày hệ thống hiện tại">
+  <label for="nowSel"><b>Hôm nay đang ở:</b></label>
+  <select id="nowSel"></select>
+  <span class="msg" id="nowMsg"></span>
+</div>
+
+<section aria-labelledby="s1">
+  <h2 id="s1">1. Các mốc chuyển sàn</h2>
+  <div class="ms" id="milestones"></div>
+  <div class="rules">
+    <div class="card rule ban">
+      <h3>Quy tắc bắt buộc</h3>
+      <p>Không tạo quyền nào có <b>ngày ĐKCC (Record date) từ D-3 đến D+1</b>. Đây là cửa sổ mã đang dừng giao dịch và chuyển sàn (tô đỏ nhạt trên timeline).</p>
+    </div>
+    <div class="card rule">
+      <h3>Hai nhóm kịch bản THQ</h3>
+      <ul>
+        <li><b>Chốt trước chuyển sàn:</b> ĐKCC = D-4, nhập quyền D-4 hoặc D-3. Quyền được xử lý xuyên qua giai đoạn chuyển sàn.</li>
+        <li><b>Chốt sau chuyển sàn:</b> nhập quyền D-3, ĐKCC = D+2 hoặc D+3, toàn bộ quy trình chạy trên sàn mới.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="s2">
+  <h2 id="s2">2. Timeline 13 case THQ</h2>
+  <div class="toolbar">
+    <div class="legend" id="legend"></div>
+    <div class="filters" role="group" aria-label="Lọc case">
+      <button class="f" data-f="all" aria-pressed="true">Tất cả</button>
+      <button class="f" data-f="before" aria-pressed="false">Chốt trước chuyển sàn</button>
+      <button class="f" data-f="after" aria-pressed="false">Chốt sau chuyển sàn</button>
+    </div>
+  </div>
+  <div class="scroll"><table class="g" id="gantt"></table></div>
+  <p class="muted" style="font-size:13px">Bấm vào một dòng để xem chi tiết các bước và ghi chú bên dưới. Ô viền đứt = ngày nhập có thể chọn (D-4 hoặc D-3).</p>
+  <div class="card detail" id="detail" aria-live="polite"></div>
+</section>
+
+<section aria-labelledby="s3">
+  <h2 id="s3">3. Việc cần làm theo từng ngày hệ thống</h2>
+  <div class="toolbar"><p class="muted">Mỗi ngày chia 2 nhóm: <b>Thực hiện quyền</b> (nhập quyền, ĐKCC, WADM/APRDM, PROC, FIN) và <b>Mua bán &amp; chuyển sàn chứng khoán</b> (chuyển nhượng quyền, đặt mua, kiểm tra giao dịch, nhập thông tin chuyển sàn). Ô tick chỉ dùng trong lúc xem, không được lưu lại.</p>
+  <div class="filters" role="group" aria-label="Lọc nhóm việc" id="tv">
+    <button class="f" data-v="all" aria-pressed="true">Cả 2 nhóm</button>
+    <button class="f" data-v="thq" aria-pressed="false">Chỉ thực hiện quyền</button>
+    <button class="f" data-v="gd" aria-pressed="false">Chỉ mua bán &amp; chuyển sàn</button>
+  </div></div>
+  <div class="days" id="days"></div>
+</section>
+
+<section aria-labelledby="s4">
+  <h2 id="s4">4. Các mã chuyển sàn (301 mã)</h2>
+  <div class="tgrid" id="tgroups"></div>
+  <div class="card" style="display:flex;flex-direction:column;gap:10px">
+    <div class="search">
+      <label for="q"><b>Tra mã</b></label>
+      <input id="q" type="text" placeholder="VD: NVB, HUT" autocomplete="off">
+      <span id="qres" class="muted" style="font-size:13px"></span>
+    </div>
+    <p class="muted" style="font-size:13px">Mã viền màu là mã đang được dùng trong 13 case THQ.</p>
+    <div id="chips" style="display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+</section>
+
+<section aria-labelledby="s5">
+  <h2 id="s5">5. Điểm cần xác nhận lại</h2>
+  <div class="card">
+    <ol class="qa">
+      <li>Sheet System date chỉ liệt kê từ D-3 trở đi, nhưng 9/13 case THQ dùng D-4 (ĐKCC và nhập quyền). Cần chốt ngày D-4 (suy ra là T6 13/11/2026).</li>
+      <li>Sheet System date ghi ngày GD cuối tại HNX là D-3, trong khi cột <span class="mono">Last trading date (LTD)</span> của sheet mã chuyển sàn là D-1. Nếu D-1 là ngày nhập trên hệ thống chứ không phải giá trị ngày LTD thì nên ghi rõ.</li>
+      <li>Mã DEPOX (BCH, PXK) có các bước ở D-2, khác với nhóm STO (D-1), và không có ngày niêm yết. Kiểm tra lại cách hệ thống xử lý quyền nếu có mã thuộc nhóm này.</li>
+      <li>Cột Actual day trong sheet System date đang trống. Timeline dùng mốc theo công văn (D-3 = 16/11, D-1 = 18/11); các ngày khác suy ra theo ngày làm việc, nếu có ngày nghỉ lễ cần chỉnh lại.</li>
+    </ol>
+  </div>
+</section>
+
+<footer>Nguồn: KB test ĐK THQ cổ phiếu.xlsx. Viết tắt giữ nguyên theo file: NF (nhập quyền), RD (ngày ĐKCC), WADM, APRDM, PROC (bước thanh toán/phân bổ), FIN (kết thúc quyền), RHITD/EXRITD (PROC quyền mua), WAIS/APRIS.</footer>
+</div>
+
+<script>
+const GROUPS = {"rg3": ["AME", "API", "BED", "CAP", "CCR", "CJC", "CTB", "CTT", "DP3", "HCT", "L18", "NFC", "PCH", "TD6", "VIF", "GIC", "HAD", "HCC", "HEV", "HGM", "HMR", "OCH", "ONE", "PGN", "PHN", "PPS", "PVC", "SHE", "VC1", "VC2", "VC9", "CAN", "CMC", "CMS", "CSC", "CST", "L14", "MVB", "NVB", "POT", "SHN", "SRA", "TJC", "TTL", "VE3", "VGS", "AMC", "BAB", "BBS", "BKC", "CET", "IDV", "TMX", "TTH", "TVD", "VIG", "VNR", "CTP", "DAD", "DAE", "EBS", "HOM", "PMB", "TIG", "TXM", "VSM", "CLH", "DS3", "DXP", "FID", "GMA", "MST", "NAG", "PRE", "ECI", "HAT", "HDA", "PTX", "PV2", "TDT", "TET", "THB", "V12", "CLM", "IDJ", "MAC", "MED", "S99", "SDC", "SLS", "VHE", "APS", "BPC", "BVS", "KSF", "NBP", "TNG", "VC3", "VC6", "CEO", "DHP", "ARM", "DIH", "HHC", "ICG", "MBS", "PIA", "PLC", "PSI", "PVG", "QHD", "SJE", "THD", "THT", "CIA", "IPA", "KSV", "LAS", "MEL", "PTI", "SHS", "SMT", "STP", "VBC", "VTJ", "C69", "CAR", "CKV", "DHT", "DST", "DTD", "DTK", "DVM", "EVS", "GKM", "HLD", "INN", "NDN", "PVI", "TA9", "TVC", "VCM", "VLA", "VNC", "VTV", "ADC", "CDN", "CX8", "HBS", "HVT"], "rg2": ["KDM", "KKC", "KSD", "NBC", "NDX", "NTP", "VCS", "VE4", "VMC", "NSH", "NST", "PCE", "PJC", "PPE", "PPT", "PPY", "PRC", "SD5", "SD9", "SDU", "TMB", "VIT", "X20", "BCC", "BNA", "BTS", "BXH", "LCD", "LIG", "NAP", "NTH", "PDB", "PIC", "PTS", "QST", "SCG", "SCI", "SSM", "THS", "TSB", "V21", "VE1", "VHL", "VMS", "WSS", "DNC", "EID", "HJS", "HLC", "HUT", "ITQ", "IVS", "KMT", "LBE", "MAS", "MBG", "MCO", "MDC", "VC7", "VNT", "DNP", "DTG", "GLT", "PBP", "PSD", "PVB", "SAF", "SMN", "TMC", "D11", "KTS", "PTD", "TFC", "VTH", "LDP", "PEN", "QTC", "SPC", "TTT", "VCC", "WCS", "ALT", "HTC", "LHC", "MCC", "NBW", "PMS", "UNI", "ATS", "CAG", "DL1", "SGD", "INC", "MIC", "PSE", "PSW", "STC", "TPP", "TTC", "VNF", "VSA", "AMV", "HMH", "KHS", "SGC", "SGH", "SJ1", "TV3", "TV4", "VTZ", "BAX", "BTW", "IDC", "MCF", "PGS", "PGT", "PPP", "PSC", "RCL", "S55", "SDG", "SEB", "SED", "VTC", "HKT", "PVS", "TKU", "VDL", "VFS", "BCF", "CPC", "DC2", "GDW", "L40", "MKV", "NET", "NRC", "PMP", "SZB", "VGP", "GMX", "KST", "NHC", "PCT", "PMC", "SDN", "SFN", "SVN", "TOT"], "depox": ["BCH", "PXK"]};
+const DAYS = [];
+(function(){
+  // D-3 = 2026-11-16 theo công văn; business days only
+  const base = new Date(2026,10,16);
+  const step = (d,n)=>{const x=new Date(d);let k=Math.abs(n),s=Math.sign(n);while(k>0){x.setDate(x.getDate()+s);const w=x.getDay();if(w!==0&&w!==6)k--;}return x;};
+  const wd=['CN','T2','T3','T4','T5','T6','T7'];
+  for(let i=-4;i<=9;i++){const d=step(base,i+3);DAYS.push({i,key:i===0?'D':(i>0?'D+'+i:'D'+i),date:d,lbl:wd[d.getDay()]+' '+String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')});}
+})();
+const dk = i=>i===0?'D':(i>0?'D+'+i:'D'+i);
+const dayOf = i=>DAYS.find(d=>d.i===i);
+const BAN = i=>i>=-3&&i<=1;
+
+const STEP = {
+  NF:{name:'Nhập quyền (NF)',c:'--c-nf'}, RD:{name:'Ngày ĐKCC (RD)',c:'--c-rd'},
+  WADM:{name:'WADM',c:'--c-wadm'}, APRDM:{name:'APRDM',c:'--c-aprdm'},
+  PROC:{name:'PROC / thanh toán',c:'--c-proc'}, FIN:{name:'FIN – kết thúc',c:'--c-fin'},
+  TRD:{name:'Ngày GD đầu tiên CP mới',c:'--c-trade'}
+};
+
+const CASES = [
+ {n:1,ca:'Meeting CA',vi:'Họp ĐHCĐ',t:'NVB',s:'after',nf:[-3],rd:2,wadm:3,aprdm:4,proc:[],fin:5,trd:null},
+ {n:2,ca:'Meeting CA',vi:'Họp ĐHCĐ',t:'TXM',s:'before',nf:[-4,-3],rd:-4,wadm:-3,aprdm:-2,proc:[],fin:1,trd:null},
+ {n:3,ca:'Cash dividend',vi:'Cổ tức tiền',t:'HUT',s:'after',nf:[-3],rd:2,wadm:3,aprdm:4,proc:[{d:5,l:'Thanh toán'}],fin:6,trd:null},
+ {n:4,ca:'Cash dividend',vi:'Cổ tức tiền',t:'DS3',s:'before',nf:[-4,-3],rd:-4,wadm:-3,aprdm:-2,proc:[{d:1,l:'Thanh toán'}],fin:2,trd:null},
+ {n:5,ca:'Stock dividend',vi:'Cổ tức cổ phiếu',t:'MBS',s:'after',nf:[-3],rd:2,wadm:3,aprdm:4,proc:[{d:5,l:'PROC'}],fin:6,trd:6,man:true},
+ {n:6,ca:'Stock dividend',vi:'Cổ tức cổ phiếu',t:'TNG',s:'before',nf:[-4,-3],rd:-4,wadm:-3,aprdm:-3,proc:[{d:-2,l:'PROC'}],fin:-1,trd:0,man:true},
+ {n:7,ca:'Stock dividend',vi:'Cổ tức cổ phiếu',t:'GMA',s:'before',nf:[-4,-3],rd:-4,wadm:-3,aprdm:-2,proc:[{d:1,l:'PROC'}],fin:2,trd:3,man:true},
+ {n:8,ca:'Bonus issue',vi:'Thưởng cổ phiếu',t:'SHS',s:'after',nf:[-3],rd:3,wadm:4,aprdm:5,proc:[{d:6,l:'PROC'}],fin:7,trd:8,man:true},
+ {n:9,ca:'Bonus issue',vi:'Thưởng cổ phiếu',t:'TNG',s:'before',nf:[-4,-3],rd:-4,wadm:-3,aprdm:-2,proc:[{d:0,l:'PROC'}],fin:1,trd:2,man:true},
+ {n:10,ca:'Bonus issue',vi:'Thưởng cổ phiếu',t:'TXM',s:'before',nf:[-4,-3],rd:-4,wadm:-3,aprdm:-2,proc:[{d:-1,l:'PROC'}],fin:0,trd:1,man:true},
+ {n:11,ca:'Right issue',vi:'Quyền mua',t:'NVB',s:'after',nf:[-3],rd:2,wadm:3,aprdm:3,proc:[{d:4,l:'PROC RHITD'},{d:6,l:'PROC EXRITD'}],fin:7,trd:8,
+   notes:['Mã quyền mua đăng ký dưới DEPOX; WADM = APRDM = WAIS = APRIS = D+3.','Chuyển nhượng quyền mua: từ D+4 đến D+5.','Đăng ký đặt mua (CA instruction): từ D+4 đến D+5.','PROC EXRITD ở D+6.','Lưu ý: đăng ký ít nhất 2 giao dịch đặt mua chờ duyệt ở D+4, tester duyệt ở D+5.'],
+   extra:[[3,'Đăng ký mã quyền mua dưới DEPOX; chạy WADM, APRDM, WAIS, APRIS cùng ngày','thq'],[4,'Tạo GD chuyển nhượng quyền mua','gd'],[4,'Đăng ký đặt mua; tạo ≥2 GD đặt mua để chờ duyệt','gd'],[5,'Tạo GD chuyển nhượng quyền mua (ngày cuối)','gd'],[5,'Đăng ký đặt mua (ngày cuối); duyệt các GD đặt mua chờ duyệt từ D+4','gd']]},
+ {n:12,ca:'Right issue',vi:'Quyền mua',t:'TNG',s:'before',nf:[-4,-3],rd:-4,wadm:-3,aprdm:-3,proc:[{d:-2,l:'PROC RHITD'},{d:2,l:'PROC EXRITD'}],fin:3,trd:4,
+   notes:['Mã quyền mua đăng ký dưới DEPOX; WADM = APRDM = WAIS = APRIS = D-3.','Chuyển nhượng quyền mua từ D-2 đến D+1: tạo và duyệt GD chuyển nhượng ở D-2 và D+1.','Đăng ký đặt mua ở D-2, D-1, D và D+1.','PROC ở D+2.'],
+   extra:[[-3,'Đăng ký mã quyền mua dưới DEPOX; chạy WADM, APRDM, WAIS, APRIS cùng ngày','thq'],[-2,'Tạo + duyệt GD chuyển nhượng quyền mua','gd'],[-2,'Đăng ký đặt mua','gd'],[-1,'Đăng ký đặt mua','gd'],[0,'Đăng ký đặt mua','gd'],[1,'Tạo + duyệt GD chuyển nhượng quyền mua (ngày cuối)','gd'],[1,'Đăng ký đặt mua (ngày cuối)','gd']]},
+ {n:13,ca:'Right issue',vi:'Quyền mua',t:'HUT',s:'before',nf:[-4,-3],rd:-4,wadm:-3,aprdm:-3,proc:[{d:-2,l:'PROC RHITD'},{d:-1,l:'PROC EXRITD'}],fin:0,trd:4,
+   notes:['Chuyển nhượng quyền mua: tạo và duyệt GD chuyển nhượng ở D-2.','Đăng ký đặt mua (CA instruction): D-3, D-2, D-1.','Mã quyền mua đăng ký dưới STX. Ở D-3 chuyển mã quyền từ STX sang DEPOX: tester kích hoạt thủ công bước chuyển sàn của quyền, tất cả các bước chạy trong D-3.'],
+   extra:[[-3,'Kích hoạt thủ công bước chuyển sàn mã quyền STX → DEPOX (chạy hết các bước trong ngày)','thq'],[-3,'Đăng ký đặt mua','gd'],[-2,'Tạo + duyệt GD chuyển nhượng quyền mua','gd'],[-2,'Đăng ký đặt mua','gd'],[-1,'Đăng ký đặt mua (ngày cuối)','gd']]}
+];
+CASES.forEach(c=>{ if(c.man && !c.notes) c.notes=['Kích hoạt bước PROC thủ công (Active PROC step by manually).']; });
+const THQ_TICKERS = new Set(CASES.map(c=>c.t));
+
+const TRANSFER = [
+  {i:-3,t:'Ngày GD cuối cùng tại HNX',k:false},
+  {i:-2,t:'Ngừng giao dịch',k:false},
+  {i:-1,t:'Ngừng GD; hiệu lực chuyển sàn (EOD)',k:true},
+  {i:0,t:'GD đầu tiên tại HOSE; hiệu lực hủy NY tại HNX',k:true}
+];
+
+let NOW=null; // day index i or null
+const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+function autoNow(){const t=new Date();const d=DAYS.find(x=>sameDay(x.date,t));return d?d.i:null;}
+const cls=i=>NOW===null?'':(i===NOW?'today':(i<NOW?'past':''));
+const css = v=>`var(${v})`;
+const $ = s=>document.querySelector(s);
+
+function renderMs(){$('#milestones').innerHTML = TRANSFER.map(m=>{const d=dayOf(m.i);return `<div class="card ${m.k?'k':''} ${NOW===m.i?'today':''}"><span class="d">${d.key}${NOW===m.i?'<span class="pill">Hôm nay</span>':''}</span><span class="dt">${d.lbl}/2026</span><span>${m.t}</span></div>`}).join('');}
+
+// legend
+$('#legend').innerHTML = Object.entries(STEP).map(([k,v])=>`<span><i class="sw" style="background:${css(v.c)}"></i>${v.name}</span>`).join('') + `<span><i class="sw" style="background:var(--ban);border:1px solid var(--ban-ink)"></i>Cấm RD (D-3 → D+1)</span>`;
+
+function stepsOf(c){
+  const out=[];
+  c.nf.forEach(d=>out.push({d,k:'NF',l:'NF',opt:c.nf.length>1}));
+  out.push({d:c.rd,k:'RD',l:'RD'});
+  out.push({d:c.wadm,k:'WADM',l:'WADM'});
+  out.push({d:c.aprdm,k:'APRDM',l:'APRDM'});
+  c.proc.forEach(p=>out.push({d:p.d,k:'PROC',l:p.l.replace('Thanh toán','PAY').replace('PROC ',''),full:p.l==='Thanh toán'?'Ngày thanh toán (PROC)':p.l}));
+  out.push({d:c.fin,k:'FIN',l:'FIN'});
+  if(c.trd!==null) out.push({d:c.trd,k:'TRD',l:'GD'});
+  return out;
+}
+const tag = s=>`<span class="tag ${s.opt?'opt':''}" style="${s.opt?'':'background:'+css(STEP[s.k].c)}" title="${STEP[s.k].name}">${s.l}</span>`;
+
+let filter='all', selected=11;
+function renderGantt(){
+  const head = `<thead><tr><th class="lab">Case</th>${DAYS.map(d=>`<th class="${BAN(d.i)?'banc':''} ${cls(d.i)}">${d.i===NOW?'● ':''}${d.key}<small>${d.lbl}</small></th>`).join('')}</tr></thead>`;
+  let body='';
+  [['before','Chốt trước chuyển sàn · RD = D-4'],['after','Chốt sau chuyển sàn · RD = D+2/D+3']].forEach(([s,title])=>{
+    if(filter!=='all'&&filter!==s) return;
+    body+=`<tr class="grp"><td class="lab" colspan="${DAYS.length+1}">${title}</td></tr>`;
+    CASES.filter(c=>c.s===s).forEach(c=>{
+      const st=stepsOf(c);
+      body+=`<tr tabindex="0" data-n="${c.n}" class="${c.n===selected?'sel':''}"><td class="lab"><span class="ticker">${c.t}</span> <span class="ca">#${c.n} ${c.vi}</span>${c.man?'<span class="badge m">PROC tay</span>':''}</td>`+
+        DAYS.map(d=>`<td class="day ${BAN(d.i)?'banc':''} ${cls(d.i)}">${st.filter(x=>x.d===d.i).map(tag).join('')}</td>`).join('')+`</tr>`;
+    });
+  });
+  $('#gantt').innerHTML = head+'<tbody>'+body+'</tbody>';
+  $('#gantt').querySelectorAll('tbody tr[data-n]').forEach(tr=>{
+    const pick=()=>{selected=+tr.dataset.n;renderGantt();renderDetail();};
+    tr.addEventListener('click',pick);
+    tr.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});
+  });
+}
+function renderDetail(){
+  const c=CASES.find(x=>x.n===selected);
+  const st=stepsOf(c).sort((a,b)=>a.d-b.d);
+  const names={NF:'Nhập quyền',RD:'Ngày ĐKCC',WADM:'Bước WADM',APRDM:'Bước APRDM',FIN:'Kết thúc quyền (FIN)',TRD:'Ngày GD đầu tiên của CP mới'};
+  const li = st.map(s=>{const d=dayOf(s.d);const nm=s.k==='PROC'?s.full+(c.man?' – kích hoạt thủ công':''):names[s.k]+(s.opt?' (chọn 1 trong 2 ngày)':'');return `<li><span class="dd" style="color:${css(STEP[s.k].c)}">${d.key}</span><span class="dt">${d.lbl}</span><span>${nm}</span></li>`}).join('');
+  const where = c.s==='before'?'Quyền chốt trước khi chuyển sàn: các bước xử lý sau RD rơi vào giai đoạn dừng GD / chuyển sàn, cần kiểm tra quyền vẫn chạy đúng khi mã đổi sàn.':'Quyền chốt sau khi chuyển sàn: tạo quyền từ D-3 khi mã còn ở HNX, RD và các bước sau diễn ra khi mã đã lên HOSE.';
+  $('#detail').innerHTML = `<div style="display:flex;flex-direction:column;gap:10px"><div><span class="eyebrow">Case #${c.n} · ${c.ca}</span><h3 style="font-size:20px;margin-top:2px"><span class="ticker">${c.t}</span> – ${c.vi}</h3></div><ul class="steps">${li}</ul></div>
+  <div class="notes"><h3>Cần chú ý</h3><p>${where}</p>${c.notes?`<ol>${c.notes.map(n=>`<li>${n}</li>`).join('')}</ol>`:'<p class="muted">Không có ghi chú riêng trong file.</p>'}</div>`;
+}
+document.querySelectorAll('#tv button.f').forEach(b=>b.addEventListener('click',()=>{TASKVIEW=b.dataset.v;document.querySelectorAll('#tv button.f').forEach(x=>x.setAttribute('aria-pressed',x===b));renderDays();}));
+document.querySelectorAll('.filters:not(#tv) button.f').forEach(b=>b.addEventListener('click',()=>{
+  filter=b.dataset.f;document.querySelectorAll('.filters:not(#tv) button.f').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  const vis=CASES.filter(c=>filter==='all'||c.s===filter);if(!vis.some(c=>c.n===selected)){selected=vis[0].n;}
+  renderGantt();renderDetail();
+}));
+
+// daily tasks
+let TASKVIEW='all';const DONE=new Set();
+function renderDays(){
+  const T={};DAYS.forEach(d=>T[d.i]=[]);
+  const add=(i,txt,cat='thq')=>{if(T[i])T[i].push({txt,cat});};
+  add(-3,`<b>Chuyển sàn:</b> nhập Registration date (RG) cho ${GROUPS.rg3.length} mã STX→STO nhóm RG D-3 và 2 mã STX→DEPOX (BCH, PXK)`,'gd');
+  add(-2,`<b>Chuyển sàn:</b> nhập RG cho ${GROUPS.rg2.length} mã STX→STO nhóm RG D-2`,'gd');
+  add(-2,`<b>Chuyển sàn:</b> BCH, PXK (→DEPOX): nhập LTD, DLST, RSTRL, DLSE, ACTE (không có ngày niêm yết)`,'gd');
+  add(-1,`<b>Chuyển sàn:</b> nhập LTD, DLST, RSTRL, DLSE, ACTE, LST cho cả ${GROUPS.rg3.length+GROUPS.rg2.length} mã STX→STO; chạy hiệu lực chuyển sàn cuối ngày (EOD)`,'gd');
+  add(0,`<b>Chuyển sàn:</b> kiểm tra mã đã giao dịch trên HOSE và đã hủy niêm yết trên HNX`,'gd');
+  CASES.forEach(c=>{
+    const lab=`<span class="ticker">${c.t}</span> #${c.n} ${c.vi}`;
+    if(c.nf.length>1) add(c.nf[0],`${lab}: nhập quyền, RD = D-4 (hoặc nhập ở D-3)`); else add(c.nf[0],`${lab}: nhập quyền, RD = ${dk(c.rd)}`);
+    if(c.rd!==c.nf[0] && c.rd>c.nf[c.nf.length-1]) add(c.rd,`${lab}: ngày ĐKCC – chốt danh sách`);
+    if(c.wadm===c.aprdm) add(c.wadm,`${lab}: chạy WADM và APRDM`); else {add(c.wadm,`${lab}: chạy WADM`);add(c.aprdm,`${lab}: chạy APRDM`);}
+    c.proc.forEach(p=>add(p.d,`${lab}: ${p.l==='Thanh toán'?'thanh toán (PROC)':p.l}${c.man?' – kích hoạt thủ công':''}`));
+    (c.extra||[]).forEach(([d,t,k])=>add(d,`${lab}: ${t}`,k));
+    add(c.fin,`${lab}: chạy FIN – kết thúc quyền`);
+    if(c.trd!==null) add(c.trd,`${lab}: kiểm tra CP mới về tài khoản được giao dịch`,'gd');
+  });
+  const ev = Object.fromEntries(TRANSFER.map(m=>[m.i,m.t]));
+  let id=0;
+  const CATS=[{k:'thq',n:'Thực hiện quyền',c:'--c-rd'},{k:'gd',n:'Mua bán & chuyển sàn chứng khoán',c:'--c-trade'}];
+  const show=CATS.filter(c=>TASKVIEW==='all'||TASKVIEW===c.k);
+  const cnt=i=>T[i].filter(t=>show.some(c=>c.k===t.cat)).length;
+  $('#days').innerHTML = DAYS.filter(d=>cnt(d.i)).map(d=>`<div class="card dayc ${BAN(d.i)?'banc':''} ${cls(d.i)}" id="day-${d.i}"><div class="dayh"><b>${d.key}${d.i===NOW?'<span class="pill">Hôm nay</span>':''}</b><span>${d.lbl}/2026 · ${cnt(d.i)} việc</span></div>${ev[d.i]?`<div class="ev">${ev[d.i]}</div>`:''}`+
+    show.map(c=>{const L=T[d.i].filter(t=>t.cat===c.k);if(!L.length)return '';return `<div class="tg" style="--k:var(${c.c})"><div class="tgh">${c.n} <span>${L.length}</span></div><ul class="tasks">${L.map(t=>{const tid='t'+d.i+'_'+c.k+'_'+(id++);return `<li class="${DONE.has(t.txt+d.i)?'done':''}"><input type="checkbox" id="${tid}" data-key="${(t.txt+d.i).replace(/"/g,'&quot;')}" ${DONE.has(t.txt+d.i)?'checked':''}><label for="${tid}">${t.txt}</label></li>`}).join('')}</ul></div>`}).join('')+`</div>`).join('');
+  if(!renderDays.bound){renderDays.bound=1;$('#days').addEventListener('change',e=>{if(e.target.type==='checkbox'){e.target.closest('li').classList.toggle('done',e.target.checked);const k=e.target.dataset.key;e.target.checked?DONE.add(k):DONE.delete(k);}});}
+}
+
+// tickers
+function renderTickers(){
+  const G=[
+    {k:'rg3',title:'STX → STO · RG ngày D-3',steps:[['D-3','Registration date (RG)'],['D-1','LTD, DLST, RSTRL, DLSE, ACTE, LST']]},
+    {k:'rg2',title:'STX → STO · RG ngày D-2',steps:[['D-2','Registration date (RG)'],['D-1','LTD, DLST, RSTRL, DLSE, ACTE, LST']]},
+    {k:'depox',title:'STX → DEPOX · không niêm yết',steps:[['D-3','Registration date (RG)'],['D-2','LTD, DLST, RSTRL, DLSE, ACTE'],['—','Không có Listing date (No listed)']]}
+  ];
+  $('#tgroups').innerHTML=G.map(g=>`<div class="card" style="display:flex;flex-direction:column;gap:8px"><span class="eyebrow">${GROUPS[g.k].length} mã</span><h3>${g.title}</h3><ul class="tl">${g.steps.map(s=>`<li><b>${s[0]}</b><span>${s[1]}</span></li>`).join('')}</ul></div>`).join('');
+  $('#chips').innerHTML=G.map(g=>`<div style="display:flex;flex-direction:column;gap:6px"><h3 style="font-size:13px" class="muted">${g.title} (${GROUPS[g.k].length})</h3><div class="chips">${GROUPS[g.k].map(t=>`<span class="chip ${THQ_TICKERS.has(t)?'hot':''}" data-t="${t}">${t}</span>`).join('')}</div></div>`).join('');
+  $('#q').addEventListener('input',e=>{
+    const q=e.target.value.trim().toUpperCase().split(/[\s,;]+/).filter(Boolean);
+    const chips=document.querySelectorAll('.chip');let hits=[];
+    chips.forEach(c=>{const m=q.length&&q.some(x=>c.dataset.t.startsWith(x));c.classList.toggle('hit',!!m);c.classList.toggle('dim',q.length>0&&!m);if(m)hits.push(c.dataset.t);});
+    if(!q.length){$('#qres').textContent='';return;}
+    const exact=q.map(x=>{const g=Object.keys(GROUPS).find(k=>GROUPS[k].includes(x));if(!g)return null;const lbl={rg3:'STO, RG D-3',rg2:'STO, RG D-2',depox:'DEPOX'}[g];const cs=CASES.filter(c=>c.t===x).map(c=>'#'+c.n).join(', ');return `${x}: ${lbl}${cs?' · case THQ '+cs:''}`;}).filter(Boolean);
+    $('#qres').textContent = exact.length?exact.join(' | '):(hits.length?hits.length+' mã khớp':'Không có mã này trong danh sách');
+  });
+}
+
+function renderNow(){
+  const auto=autoNow();
+  const sel=$('#nowSel');
+  sel.innerHTML=`<option value="auto">Theo ngày thực tế</option>`+DAYS.map(d=>`<option value="${d.i}">${d.key} · ${d.lbl}/2026</option>`).join('');
+  let pref='auto';try{pref=localStorage.getItem('thqNow')||'auto';}catch(e){}
+  sel.value=pref;
+  const apply=()=>{
+    const v=sel.value;NOW=v==='auto'?auto:+v;
+    const t=new Date();const ts=String(t.getDate()).padStart(2,'0')+'/'+String(t.getMonth()+1).padStart(2,'0')+'/'+t.getFullYear();
+    let m;
+    if(NOW===null){m=`Ngày thực tế ${ts} nằm ngoài timeline (${DAYS[0].lbl} – ${DAYS[DAYS.length-1].lbl}/2026). Chọn ngày hệ thống đang chạy test ở ô bên cạnh để tô xanh.`;}
+    else{const d=dayOf(NOW);const n=document.querySelectorAll('#day-'+NOW+' .tasks li').length;m=`<b>${d.key}</b> (${d.lbl}/2026)${v==='auto'?' theo ngày thực tế':' do bạn chọn'}. Các ngày trước đó được làm mờ. <a href="#day-${NOW}" style="color:var(--today);font-weight:600">Xem việc hôm nay →</a>`;}
+    renderMs();renderGantt();renderDays();
+    $('#nowMsg').innerHTML=m;
+  };
+  sel.addEventListener('change',()=>{try{localStorage.setItem('thqNow',sel.value);}catch(e){}apply();});
+  apply();
+}
+renderNow();renderDetail();renderTickers();
+</script>
+</body>
+</html>
